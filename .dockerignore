@@ -1,0 +1,10 @@
+.git
+.gitignore
+.gitattributes
+data
+build
+bench
+models
+docs
+tests
+*.md
