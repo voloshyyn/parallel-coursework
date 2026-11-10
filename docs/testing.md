@@ -42,9 +42,40 @@
 Таблиця «запит / очікуваний / фактичний результат» ведеться в `experiments.md`.
 
 ## Запуск
+
+Звичайна збірка з тестами:
+
 ```bash
-# TODO: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON && cmake --build build && ctest --test-dir build
-# Smoke-тест: скрипт (bash) піднімає `docker compose up -d`, чекає `/api/health` → 200,
-# виконує POST /api/index, POST /api/search, GET /api/stats і перевіряє коди та поля JSON.
-# Файл: scripts/smoke.sh (TODO: створити)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
+
+Кожен тестовий бінарник у CTest має жорсткий таймаут 120 с, тому взаємне блокування
+падає як помилка, а не зависає.
+
+### ThreadSanitizer
+
+На Windows TSan у WSL зазвичай завершується з `unexpected memory mapping`, тому
+збираємо і запускаємо його в Linux-контейнері. `--security-opt seccomp=unconfined`
+потрібен sanitizer-ам, а `setarch -R` вимикає рандомізацію адресного простору:
+
+```bash
+docker run --rm --security-opt seccomp=unconfined \
+  -v "$PWD":/src:ro ubuntu:24.04 bash -c '
+    set -euo pipefail
+    apt-get update -qq
+    apt-get install -y -qq --no-install-recommends \
+      build-essential cmake git ca-certificates libasio-dev
+    cmake -S /src -B /tmp/build -DCMAKE_BUILD_TYPE=Debug \
+      -DENABLE_TSAN=ON -DBUILD_TESTING=ON
+    cmake --build /tmp/build -j
+    setarch -R ctest --test-dir /tmp/build --output-on-failure
+  '
+```
+
+### Smoke-тест
+
+`scripts/smoke.sh` чекає, доки `GET /api/health` не поверне 200, і перевіряє поля
+відповіді. На наступних етапах скрипт доповнюється викликами `POST /api/index`,
+`POST /api/search` і `GET /api/stats`.
