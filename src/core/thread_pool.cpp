@@ -1,9 +1,23 @@
 #include "core/thread_pool.h"
 
+#include <iostream>
+#include <mutex>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace search {
+namespace {
+
+// Serialises diagnostics so lines from different workers never interleave.
+void LogTaskFailure(const std::string& message) {
+  static std::mutex log_mutex;
+  std::lock_guard<std::mutex> lock(log_mutex);
+  const std::string line = message + "\n";
+  std::cerr.write(line.data(), static_cast<std::streamsize>(line.size()));
+}
+
+}  // namespace
 
 ThreadPool::ThreadPool(std::size_t thread_count) : thread_count_(thread_count) {
   if (thread_count_ == 0) {
@@ -64,7 +78,10 @@ void ThreadPool::WorkerLoop() {
     // A failing task must not terminate the worker thread.
     try {
       task();
+    } catch (const std::exception& error) {
+      LogTaskFailure(std::string("ThreadPool: task threw: ") + error.what());
     } catch (...) {
+      LogTaskFailure("ThreadPool: task threw unknown exception");
     }
   }
 }
