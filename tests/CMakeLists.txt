@@ -25,6 +25,7 @@ function(add_search_test name)
 endfunction()
 
 add_search_test(health_test)
+add_search_test(index_service_test)
 add_search_test(inverted_index_test)
 add_search_test(thread_pool_test)
 add_search_test(tokenizer_test)
