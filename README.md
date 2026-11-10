@@ -99,7 +99,16 @@ cmake --build build --parallel
 
 ## Тести
 
-Юніт- та інтеграційні тести додаються на наступних етапах. Для Linux-контейнера
+Тести збираються за допомогою GoogleTest і вмикаються опцією `BUILD_TESTING`
+(за замовчуванням увімкнена через `CTest`):
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+Образ сервера збирається без тестів (`-DBUILD_TESTING=OFF`). Для Linux-контейнера
 передбачено збирання з ThreadSanitizer:
 
 ```bash
