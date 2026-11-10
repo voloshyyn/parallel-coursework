@@ -9,9 +9,30 @@
 namespace search {
 namespace detail {
 
+// Whether a complete sequence of `length` bytes encodes a legal code point.
+// Rejects the three classic holes of form-only validation: overlong encodings,
+// UTF-16 surrogates and code points above U+10FFFF.
+inline bool IsValidCodePoint(char32_t code_point, std::size_t length) noexcept {
+  switch (length) {
+    case 1:
+      return true;
+    case 2:
+      return code_point >= 0x80U;
+    case 3:
+      return code_point >= 0x800U &&
+             (code_point < 0xD800U || code_point > 0xDFFFU);
+    case 4:
+      return code_point >= 0x10000U && code_point <= 0x10FFFFU;
+    default:
+      return false;
+  }
+}
+
 // Decodes the UTF-8 sequence starting at `pos` and advances past it. Invalid
-// input yields nothing and consumes one byte, so binary junk acts as a
-// separator instead of gluing words together.
+// input - a forbidden lead byte, a missing or wrong continuation byte, an
+// overlong encoding, a surrogate or a value above U+10FFFF - yields nothing and
+// consumes exactly one byte, so binary junk acts as a separator instead of
+// gluing words together.
 inline std::optional<char32_t> DecodeUtf8(std::string_view text,
                                           std::size_t& pos) {
   const unsigned char first = static_cast<unsigned char>(text[pos]);
@@ -20,13 +41,15 @@ inline std::optional<char32_t> DecodeUtf8(std::string_view text,
   if (first < 0x80U) {
     code_point = first;
     length = 1;
-  } else if ((first & 0xE0U) == 0xC0U) {
+  } else if (first >= 0xC2U && first <= 0xDFU) {
+    // C0 and C1 are always overlong; the shortest form starts at C2.
     code_point = first & 0x1FU;
     length = 2;
-  } else if ((first & 0xF0U) == 0xE0U) {
+  } else if (first >= 0xE0U && first <= 0xEFU) {
     code_point = first & 0x0FU;
     length = 3;
-  } else if ((first & 0xF8U) == 0xF0U) {
+  } else if (first >= 0xF0U && first <= 0xF4U) {
+    // F5..FF would encode values above U+10FFFF.
     code_point = first & 0x07U;
     length = 4;
   } else {
@@ -46,6 +69,10 @@ inline std::optional<char32_t> DecodeUtf8(std::string_view text,
       return std::nullopt;
     }
     code_point = (code_point << 6) | (continuation & 0x3FU);
+  }
+  if (!IsValidCodePoint(code_point, length)) {
+    ++pos;
+    return std::nullopt;
   }
   pos += length;
   return code_point;
