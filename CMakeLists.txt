@@ -53,6 +53,7 @@ FetchContent_MakeAvailable(Crow)
 add_library(search_core STATIC
   src/api.cpp
   src/config.cpp
+  src/core/thread_pool.cpp
   src/integrations/ollama_client.cpp
   src/integrations/ollama_monitor.cpp)
 target_include_directories(search_core PUBLIC src)
