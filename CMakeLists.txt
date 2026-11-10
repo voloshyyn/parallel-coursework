@@ -51,11 +51,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Crow)
 
 add_library(search_core STATIC
+  src/api.cpp
   src/config.cpp
-  src/integrations/ollama_client.cpp)
+  src/integrations/ollama_client.cpp
+  src/integrations/ollama_monitor.cpp)
 target_include_directories(search_core PUBLIC src)
 target_link_libraries(search_core
   PUBLIC
+    Crow::Crow
     nlohmann_json::nlohmann_json
     httplib::httplib
     Threads::Threads)
@@ -64,7 +67,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 add_executable(search_server src/main.cpp)
-target_link_libraries(search_server PRIVATE search_core Crow::Crow)
+target_link_libraries(search_server PRIVATE search_core)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(search_server PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+include(CTest)
+if(BUILD_TESTING)
+  add_subdirectory(tests)
 endif()
