@@ -68,7 +68,17 @@
 |---|---|---|
 | Некоректний JSON / відсутнє поле | 400 | `{ "status": "error", "message": "..." }` |
 | Пошук до побудови індексу або під час побудови | 409 | `{ "status": "error", "message": "index not built" }` або `"index is building"` |
+| Повторний `POST /api/index` під час побудови | 409 | `{ "status": "error", "message": "index is building" }` |
+| Внутрішня помилка (наприклад, недоступний каталог датасету) | 500 | `{ "status": "error", "message": "..." }` |
 | Ollama недоступна під час пошуку | — | пошук продовжується з оригінальним запитом, `expanded_terms` порожній |
+
+`GET /api/stats` до першої побудови повертає `200` з нулями:
+`{ "documents": 0, "index_build_time_ms": 0, "threads_used": 0 }`.
+
+`POST /api/search` зараз підтримує лише `mode: "keyword"`; інше значення або
+відсутнє поле — `400`. Порожній `query` — теж `400`. `results` містить не
+більше 10 елементів, `score` нормований у (0, 1], порядок детермінований
+(див. `architecture.md`).
 
 ## Правила `threads`
 - `threads` < 1 або не ціле число → `400` з `message: "threads must be in 1..64"`.

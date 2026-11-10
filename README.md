@@ -24,6 +24,8 @@
 
 ```
 src/                 серверний код
+  core/              токенізатор, шардований індекс, thread pool, пошук
+  services/          IndexService: паралельна побудова і публікація індексу
   integrations/      клієнт Ollama
 tools/               підготовка датасету
 scripts/             допоміжні скрипти (smoke-тест)
@@ -85,6 +87,40 @@ curl http://localhost:8080/api/health
 
 `ollama` у відповіді дорівнює `false`, якщо сервер Ollama недоступний; сам
 `/api/health` у цьому разі все одно повертає 200.
+
+## Використання API
+
+Побудова індексу (читає весь датасет; `threads` — 1..64, типово 4):
+
+```bash
+curl -X POST http://localhost:8080/api/index \
+  -H 'Content-Type: application/json' -d '{"threads": 4}'
+# {"documents_indexed": 12061, "status": "ok", "time_ms": 40579}
+```
+
+Статистика індексу:
+
+```bash
+curl http://localhost:8080/api/stats
+# {"documents": 12061, "index_build_time_ms": 40579, "threads_used": 4}
+```
+
+Пошук за ключовими словами:
+
+```bash
+curl -X POST http://localhost:8080/api/search \
+  -H 'Content-Type: application/json' -d '{"query": "whale", "mode": "keyword"}'
+# {"results": [{"doc_id": "...", "score": 1.0, "snippet": "..."}], "time_ms": 44}
+```
+
+Значення вище виміряні на повному датасеті (12 061 документ, 1,96 ГБ) у Docker
+на 12-ядерній машині з `threads: 4`: побудова — 40,6 с, пошук — 44–48 мс.
+Це не результати лабораторного експерименту (він буде на етапі 9), а приклад
+відповіді.
+
+Пошук до побудови індексу повертає 409 `index not built`, під час побудови —
+409 `index is building`; `threads` поза 1..64 — 400. Повний контракт — у
+`docs/api.md`.
 
 ## Локальне збирання
 
