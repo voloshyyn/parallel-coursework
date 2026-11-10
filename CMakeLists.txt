@@ -54,6 +54,7 @@ add_library(search_core STATIC
   src/api.cpp
   src/config.cpp
   src/core/inverted_index.cpp
+  src/core/search_engine.cpp
   src/core/thread_pool.cpp
   src/core/tokenizer.cpp
   src/integrations/ollama_client.cpp
