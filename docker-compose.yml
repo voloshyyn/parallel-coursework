@@ -22,7 +22,7 @@ services:
       start_period: 10s
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.40.10
     ports:
       - "11434:11434"
     volumes:
