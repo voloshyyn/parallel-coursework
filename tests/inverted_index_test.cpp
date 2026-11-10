@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
+#include <semaphore>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -229,14 +231,37 @@ TEST(InvertedIndex, AcceptsWritesFromManyThreads) {
   }
 }
 
+// The reader must check real postings while the build is still running. A
+// single start barrier is not enough: it only aligns the threads, so the reader
+// could look at an empty index and the writer could finish before the lookup.
+// Instead the writer signals after the first batch and then waits for the
+// reader's confirmation before adding the remaining documents.
 TEST(InvertedIndex, AnswersLookupsWhileAnotherThreadIndexes) {
   constexpr int kDocuments = 300;
+  constexpr int kFirstBatch = 10;
   InvertedIndex index(8);
+
+  std::binary_semaphore first_batch_added{0};
+  std::binary_semaphore lookup_confirmed{0};
   std::atomic<bool> finished{false};
   std::atomic<int> lookups{0};
 
-  std::thread reader([&index, &finished, &lookups] {
-    while (!finished.load(std::memory_order_relaxed)) {
+  std::thread reader([&index, &first_batch_added, &lookup_confirmed,
+                      &finished, &lookups] {
+    first_batch_added.acquire();
+
+    // This lookup is guaranteed to see the first batch, not an empty index.
+    const std::vector<Posting> observed = index.Lookup("common");
+    EXPECT_FALSE(observed.empty());
+    for (const Posting& posting : observed) {
+      EXPECT_LT(posting.doc_id, index.DocumentCount());
+      EXPECT_GT(posting.term_freq, 0U);
+    }
+    lookups.fetch_add(1, std::memory_order_relaxed);
+    lookup_confirmed.release();
+
+    // Keep reading while the writer indexes the rest of the corpus.
+    while (!finished.load(std::memory_order_acquire)) {
       for (const Posting& posting : index.Lookup("common")) {
         EXPECT_LT(posting.doc_id, index.DocumentCount());
         EXPECT_GT(posting.term_freq, 0U);
@@ -245,12 +270,26 @@ TEST(InvertedIndex, AnswersLookupsWhileAnotherThreadIndexes) {
     }
   });
 
+  bool confirmed = false;
   for (int i = 0; i < kDocuments; ++i) {
     index.AddDocument(DocName(i), "common text");
+    if (i + 1 == kFirstBatch) {
+      first_batch_added.release();
+      // The handshake is what actually orders the phases; the bounded wait only
+      // keeps a broken reader from hanging the test until the CTest timeout.
+      confirmed = lookup_confirmed.try_acquire_for(std::chrono::seconds(10));
+      if (!confirmed) {
+        break;
+      }
+      // Documents are still being added: the confirmed lookup saw a build in
+      // progress, not the final index.
+      EXPECT_LT(index.DocumentCount(), static_cast<std::size_t>(kDocuments));
+    }
   }
-  finished.store(true, std::memory_order_relaxed);
+  finished.store(true, std::memory_order_release);
   reader.join();
 
+  EXPECT_TRUE(confirmed);
   EXPECT_EQ(static_cast<std::size_t>(kDocuments), index.DocumentCount());
   EXPECT_GT(lookups.load(), 0);
 }
