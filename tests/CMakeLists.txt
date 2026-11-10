@@ -9,11 +9,20 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(googletest)
 
-add_executable(health_test health_test.cpp)
-target_link_libraries(health_test PRIVATE search_core GTest::gtest_main)
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(health_test PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
 include(GoogleTest)
-gtest_discover_tests(health_test)
+
+# Every test binary gets a hard timeout so a deadlock fails the run instead of
+# hanging it.
+function(add_search_test name)
+  add_executable(${name} ${name}.cpp)
+  target_link_libraries(${name} PRIVATE search_core GTest::gtest_main)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(${name} PRIVATE -Wall -Wextra -Wpedantic)
+  endif()
+  # Discovery runs at test time: a ThreadSanitizer binary cannot be executed
+  # during the build unless ASLR is disabled, and `setarch -R` wraps ctest.
+  gtest_discover_tests(${name} PROPERTIES TIMEOUT 120 DISCOVERY_MODE PRE_TEST)
+endfunction()
+
+add_search_test(health_test)
+add_search_test(thread_pool_test)
