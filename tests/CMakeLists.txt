@@ -24,6 +24,7 @@ function(add_search_test name)
   gtest_discover_tests(${name} PROPERTIES TIMEOUT 120 DISCOVERY_MODE PRE_TEST)
 endfunction()
 
+add_search_test(api_test)
 add_search_test(health_test)
 add_search_test(index_service_test)
 add_search_test(inverted_index_test)

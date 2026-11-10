@@ -5,8 +5,10 @@
 
 #include "api.h"
 #include "config.h"
+#include "core/search_engine.h"
 #include "integrations/ollama_client.h"
 #include "integrations/ollama_monitor.h"
+#include "services/index_service.h"
 
 int main() {
   const search::Config config = search::Config::FromEnvironment();
@@ -17,8 +19,12 @@ int main() {
                                 std::chrono::seconds(5));
   monitor.Start();
 
+  search::IndexService index_service(config.data_dir);
+  const search::SearchEngine engine(config.data_dir);
+
   crow::SimpleApp app;
   search::RegisterHealthRoute(app, monitor);
+  search::RegisterSearchRoutes(app, index_service, engine);
 
   app.loglevel(crow::LogLevel::Warning);
   std::cout << "search_server listening on 0.0.0.0:" << config.port
