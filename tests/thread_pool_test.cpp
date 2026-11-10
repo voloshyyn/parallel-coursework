@@ -3,8 +3,10 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <barrier>
 #include <chrono>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -75,6 +77,7 @@ TEST(ThreadPool, ShutdownWaitsForRunningTask) {
 }
 
 TEST(ThreadPool, KeepsRunningAfterTaskThrows) {
+  testing::internal::CaptureStderr();
   search::ThreadPool pool(1);
   std::atomic<int> executed{0};
 
@@ -82,8 +85,26 @@ TEST(ThreadPool, KeepsRunningAfterTaskThrows) {
   ASSERT_TRUE(pool.Submit([&executed] { executed.fetch_add(1); }));
   ASSERT_TRUE(pool.Submit([&executed] { executed.fetch_add(1); }));
   pool.Shutdown();
+  const std::string stderr_output = testing::internal::GetCapturedStderr();
 
   EXPECT_EQ(2, executed.load());
+  EXPECT_NE(std::string::npos,
+            stderr_output.find("ThreadPool: task threw: boom"));
+}
+
+TEST(ThreadPool, ReportsUnknownTaskException) {
+  testing::internal::CaptureStderr();
+  search::ThreadPool pool(1);
+  std::atomic<int> executed{0};
+
+  ASSERT_TRUE(pool.Submit([] { throw 42; }));
+  ASSERT_TRUE(pool.Submit([&executed] { executed.fetch_add(1); }));
+  pool.Shutdown();
+  const std::string stderr_output = testing::internal::GetCapturedStderr();
+
+  EXPECT_EQ(1, executed.load());
+  EXPECT_NE(std::string::npos,
+            stderr_output.find("ThreadPool: task threw unknown exception"));
 }
 
 TEST(ThreadPool, RejectsTaskAfterShutdown) {
@@ -115,4 +136,99 @@ TEST(ThreadPool, ReportsThreadCount) {
   const search::ThreadPool pool(3);
 
   EXPECT_EQ(3U, pool.ThreadCount());
+}
+
+// Concurrent Shutdown callers must not race on workers_. Before the separate
+// shutdown mutex this test reports a data race under ThreadSanitizer.
+TEST(ThreadPool, ShutdownIsSafeForConcurrentCallers) {
+  constexpr int kCallers = 8;
+  search::ThreadPool pool(4);
+  std::atomic<int> executed{0};
+
+  for (int i = 0; i < 500; ++i) {
+    ASSERT_TRUE(pool.Submit([&executed] { executed.fetch_add(1); }));
+  }
+
+  std::barrier start(kCallers);
+  std::vector<std::thread> callers;
+  callers.reserve(kCallers);
+  for (int i = 0; i < kCallers; ++i) {
+    callers.emplace_back([&pool, &start] {
+      start.arrive_and_wait();
+      pool.Shutdown();
+    });
+  }
+  for (std::thread& caller : callers) {
+    caller.join();
+  }
+
+  EXPECT_EQ(500, executed.load());
+}
+
+TEST(ThreadPool, AcceptsTasksFromManyProducers) {
+  constexpr int kProducers = 8;
+  constexpr int kTasksPerProducer = 1000;
+  search::ThreadPool pool(4);
+  std::atomic<int> executed{0};
+  std::atomic<int> rejected{0};
+
+  std::barrier start(kProducers);
+  std::vector<std::thread> producers;
+  producers.reserve(kProducers);
+  for (int i = 0; i < kProducers; ++i) {
+    producers.emplace_back([&] {
+      start.arrive_and_wait();
+      for (int task = 0; task < kTasksPerProducer; ++task) {
+        if (!pool.Submit([&executed] { executed.fetch_add(1); })) {
+          rejected.fetch_add(1);
+        }
+      }
+    });
+  }
+  for (std::thread& producer : producers) {
+    producer.join();
+  }
+  pool.Shutdown();
+
+  EXPECT_EQ(0, rejected.load());
+  EXPECT_EQ(kProducers * kTasksPerProducer, executed.load());
+}
+
+// Producers keep submitting while another thread shuts the pool down: every
+// accepted task must run exactly once and every computed task is counted.
+TEST(ThreadPool, LosesNoTaskWhenShutdownRunsConcurrently) {
+  constexpr int kProducers = 8;
+  constexpr int kTasksPerProducer = 500;
+  search::ThreadPool pool(4);
+  std::atomic<int> accepted{0};
+  std::atomic<int> rejected{0};
+  std::atomic<int> executed{0};
+
+  std::barrier start(kProducers + 1);
+  std::vector<std::thread> threads;
+  threads.reserve(kProducers + 1);
+  for (int i = 0; i < kProducers; ++i) {
+    threads.emplace_back([&] {
+      start.arrive_and_wait();
+      for (int task = 0; task < kTasksPerProducer; ++task) {
+        if (pool.Submit([&executed] { executed.fetch_add(1); })) {
+          accepted.fetch_add(1);
+        } else {
+          rejected.fetch_add(1);
+        }
+      }
+    });
+  }
+  threads.emplace_back([&pool, &start] {
+    start.arrive_and_wait();
+    pool.Shutdown();
+  });
+
+  for (std::thread& thread : threads) {
+    thread.join();
+  }
+  pool.Shutdown();
+
+  EXPECT_EQ(kProducers * kTasksPerProducer, accepted.load() + rejected.load());
+  EXPECT_EQ(accepted.load(), executed.load());
 }
