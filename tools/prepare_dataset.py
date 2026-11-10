@@ -109,13 +109,13 @@ def strip_boilerplate(text: str) -> tuple[str, bool, bool]:
 
     if end <= start:
         return "", start_match is not None, bool(end_matches)
-    return text[start:end], start_match is not None, bool(end_matches)
+    return text[start:end].lstrip("\ufeff"), start_match is not None, bool(end_matches)
 
 
 def split_paragraphs(text: str) -> list[str]:
     paragraphs = []
     for block in PARAGRAPH_SEPARATOR.split(text):
-        block = block.strip()
+        block = block.strip().lstrip("\ufeff").strip()
         if block:
             paragraphs.append(block)
     return paragraphs
