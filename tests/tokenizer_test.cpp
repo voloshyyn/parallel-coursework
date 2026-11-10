@@ -61,3 +61,9 @@ TEST(Tokenizer, LeavesUnknownMultiByteLettersUnchanged) {
   // Greek is outside the folded ranges: the code points must survive untouched.
   EXPECT_EQ((std::vector<std::string>{"ΑΒΓ"}), Tokens("ΑΒΓ"));
 }
+
+TEST(Tokenizer, TreatsInvalidUtf8AsSeparator) {
+  const std::string text = std::string("ab") + '\xFF' + "cd";
+  EXPECT_EQ((std::vector<std::string>{"ab", "cd"}), Tokens(text));
+  EXPECT_TRUE(Tokens(std::string(1, '\xFF')).empty());
+}
