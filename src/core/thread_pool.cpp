@@ -53,6 +53,10 @@ void ThreadPool::Shutdown() {
     stopping_ = true;
   }
   has_task_.notify_all();
+
+  // Workers need mutex_ to drain the queue, so the join happens under a
+  // separate mutex. Concurrent callers queue here and then see workers_ empty.
+  std::lock_guard<std::mutex> shutdown_lock(shutdown_mutex_);
   for (std::thread& worker : workers_) {
     if (worker.joinable()) {
       worker.join();

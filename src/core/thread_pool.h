@@ -29,7 +29,12 @@ class ThreadPool {
   bool Submit(std::function<void()> task);
 
   // Stops accepting tasks, waits until the queue is drained and every running
-  // task is finished, then joins the workers. Idempotent.
+  // task is finished, then joins the workers.
+  //
+  // Thread-safe: concurrent callers all return only after the pool has fully
+  // stopped, and repeated calls afterwards do nothing. Calling Shutdown from a
+  // task executed by this same pool is NOT supported: the worker would wait for
+  // itself to finish and deadlock.
   void Shutdown();
 
   // Number of worker threads created at construction.
@@ -42,6 +47,9 @@ class ThreadPool {
   std::vector<std::thread> workers_;
   std::queue<std::function<void()>> tasks_;
   mutable std::mutex mutex_;
+  // Serialises shutdown so only one caller joins workers_ at a time. Held only
+  // while joining; mutex_ must not be held there.
+  std::mutex shutdown_mutex_;
   std::condition_variable has_task_;
   bool stopping_ = false;
 };
