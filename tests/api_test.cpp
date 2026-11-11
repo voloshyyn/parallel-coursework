@@ -3,7 +3,6 @@
 
 #include <chrono>
 #include <filesystem>
-#include <semaphore>
 #include <string>
 #include <thread>
 #include <vector>
@@ -23,6 +22,7 @@ using namespace std::chrono_literals;
 using search::IndexService;
 using search::IndexState;
 using search::SearchEngine;
+using search::test_support::BuildGate;
 using search::test_support::TempDir;
 
 // Runs the REST search routes on a fixed port for the lifetime of the object.
@@ -77,18 +77,6 @@ httplib::Client MakeClient(int port) {
 
 nlohmann::json ParseBody(const httplib::Result& result) {
   return nlohmann::json::parse(result->body);
-}
-
-bool WaitUntilBuilding(const IndexService& service,
-                       std::chrono::milliseconds timeout) {
-  const auto deadline = std::chrono::steady_clock::now() + timeout;
-  while (std::chrono::steady_clock::now() < deadline) {
-    if (service.State() == IndexState::kBuilding) {
-      return true;
-    }
-    std::this_thread::sleep_for(1ms);
-  }
-  return service.State() == IndexState::kBuilding;
 }
 
 }  // namespace
@@ -257,14 +245,13 @@ TEST(SearchApi, SearchDuringBuildReturns409) {
   dir.Write("a.txt", "alpha");
   dir.Write("b.txt", "beta");
 
-  // The blocking reader holds the build open, so the 409 answer is observed
+  // The gate holds the build inside the reader, so the 409 answer is observed
   // deterministically instead of by racing a fast build.
-  std::binary_semaphore gate{0};
+  BuildGate gate("whale whale");
+  gate.Hold("whale whale");
   IndexService service(dir.path().string(),
-                       [&gate](const std::filesystem::path&) {
-                         gate.acquire();
-                         gate.release();
-                         return std::string("whale whale");
+                       [&gate](const std::filesystem::path& path) {
+                         return gate.Read(path);
                        });
   const SearchEngine engine(dir.path().string());
   ApiServer server(service, engine, 18096);
@@ -278,22 +265,27 @@ TEST(SearchApi, SearchDuringBuildReturns409) {
                                     "application/json");
     build_status = result ? result->status : -1;
   });
-
-  const bool observed_building = WaitUntilBuilding(service, 5s);
+  gate.WaitUntilReading();
 
   httplib::Client client = MakeClient(server.port());
   const auto during_build = client.Post(
       "/api/search", R"({"query": "whale", "mode": "keyword"})",
       "application/json");
+  // A second POST /api/index during the build is rejected by the same rule.
+  const auto second_index =
+      client.Post("/api/index", R"({"threads": 1})", "application/json");
 
-  gate.release();
+  gate.Release();
   builder.join();
 
-  ASSERT_TRUE(observed_building);
   ASSERT_TRUE(during_build);
   EXPECT_EQ(409, during_build->status);
   EXPECT_NE(std::string::npos,
             during_build->body.find("\"message\":\"index is building\""));
+  ASSERT_TRUE(second_index);
+  EXPECT_EQ(409, second_index->status);
+  EXPECT_NE(std::string::npos,
+            second_index->body.find("\"message\":\"index is building\""));
   EXPECT_EQ(200, build_status);
 
   const auto after_build = client.Post(
@@ -302,4 +294,107 @@ TEST(SearchApi, SearchDuringBuildReturns409) {
   ASSERT_TRUE(after_build);
   EXPECT_EQ(200, after_build->status);
   EXPECT_EQ(2U, ParseBody(after_build).at("results").size());
+}
+
+// A rebuild of an already published index behaves like the first build: new
+// searches get 409, and the old generation is served again if the rebuild
+// fails.
+TEST(SearchApi, SearchDuringRebuildReturns409) {
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  dir.Write("b.txt", "beta");
+
+  BuildGate gate("alpha");
+  IndexService service(dir.path().string(),
+                       [&gate](const std::filesystem::path& path) {
+                         return gate.Read(path);
+                       });
+  const SearchEngine engine(dir.path().string());
+  ApiServer server(service, engine, 18097);
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+
+  const auto indexed =
+      client.Post("/api/index", R"({"threads": 2})", "application/json");
+  ASSERT_TRUE(indexed);
+  ASSERT_EQ(200, indexed->status) << indexed->body;
+
+  gate.Hold("whale whale");
+  std::thread rebuilder([&service] {
+    httplib::Client builder_client("127.0.0.1", 18097);
+    builder_client.set_read_timeout(30s);
+    builder_client.Post("/api/index", R"({"threads": 3})",
+                        "application/json");
+  });
+  gate.WaitUntilReading();
+
+  const auto during_rebuild = client.Post(
+      "/api/search", R"({"query": "alpha", "mode": "keyword"})",
+      "application/json");
+  gate.Release();
+  rebuilder.join();
+
+  ASSERT_TRUE(during_rebuild);
+  EXPECT_EQ(409, during_rebuild->status);
+  EXPECT_NE(std::string::npos,
+            during_rebuild->body.find("\"message\":\"index is building\""));
+
+  // The rebuild published a different index and a different thread count.
+  const auto stats = client.Get("/api/stats");
+  ASSERT_TRUE(stats);
+  ASSERT_EQ(200, stats->status);
+  EXPECT_EQ(2, ParseBody(stats).at("documents"));
+  EXPECT_EQ(3, ParseBody(stats).at("threads_used"));
+
+  const auto after_rebuild = client.Post(
+      "/api/search", R"({"query": "whale", "mode": "keyword"})",
+      "application/json");
+  ASSERT_TRUE(after_rebuild);
+  ASSERT_EQ(200, after_rebuild->status) << after_rebuild->body;
+  EXPECT_EQ(2U, ParseBody(after_rebuild).at("results").size());
+
+  const auto old_terms = client.Post(
+      "/api/search", R"({"query": "alpha", "mode": "keyword"})",
+      "application/json");
+  ASSERT_TRUE(old_terms);
+  EXPECT_EQ(200, old_terms->status);
+  EXPECT_TRUE(ParseBody(old_terms).at("results").empty());
+}
+
+// documents and threads_used belong to the same build: the first build indexes
+// three documents with two threads, the second indexes one document with five.
+TEST(SearchApi, StatsMatchTheLastSuccessfulBuild) {
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  dir.Write("b.txt", "beta");
+  dir.Write("c.txt", "gamma");
+  IndexService service(dir.path().string());
+  const SearchEngine engine(dir.path().string());
+  ApiServer server(service, engine, 18098);
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+
+  const auto first =
+      client.Post("/api/index", R"({"threads": 2})", "application/json");
+  ASSERT_TRUE(first);
+  ASSERT_EQ(200, first->status) << first->body;
+  const auto first_stats = client.Get("/api/stats");
+  ASSERT_TRUE(first_stats);
+  EXPECT_EQ(3, ParseBody(first_stats).at("documents"));
+  EXPECT_EQ(2, ParseBody(first_stats).at("threads_used"));
+
+  std::filesystem::remove(dir.path() / "b.txt");
+  std::filesystem::remove(dir.path() / "c.txt");
+  const auto second =
+      client.Post("/api/index", R"({"threads": 5})", "application/json");
+  ASSERT_TRUE(second);
+  ASSERT_EQ(200, second->status) << second->body;
+
+  const auto stats = client.Get("/api/stats");
+  ASSERT_TRUE(stats);
+  ASSERT_EQ(200, stats->status);
+  const nlohmann::json body = ParseBody(stats);
+  EXPECT_EQ(1, body.at("documents"));
+  EXPECT_EQ(5, body.at("threads_used"));
+  EXPECT_GE(body.at("index_build_time_ms").get<long long>(), 0);
 }

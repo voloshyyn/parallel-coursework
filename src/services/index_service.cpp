@@ -35,14 +35,19 @@ std::optional<BuildStats> IndexService::Build(std::size_t threads) {
   if (threads == 0) {
     throw std::invalid_argument("index build requires at least one thread");
   }
-  // Only one build at a time: a second one would compete for memory and make
-  // /api/stats ambiguous.
-  bool expected = false;
-  if (!building_.compare_exchange_strong(expected, true)) {
-    return std::nullopt;
+  {
+    // Checking `building_` and entering the building state happen under the
+    // same lock, so two builds can never run at once.
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    if (building_) {
+      return std::nullopt;
+    }
+    building_ = true;
+    state_ = IndexState::kBuilding;
   }
-  state_.store(IndexState::kBuilding, std::memory_order_release);
 
+  // Everything below runs without the state lock: listing, reading and
+  // indexing files must not block readers of the state.
   const auto started = std::chrono::steady_clock::now();
   try {
     const std::vector<std::filesystem::path> documents = ListDocuments();
@@ -88,33 +93,36 @@ std::optional<BuildStats> IndexService::Build(std::size_t threads) {
     };
 
     {
-      std::lock_guard<std::mutex> lock(index_mutex_);
-      index_ = std::move(index);
+      // Publishing the index and its stats and leaving the building state is
+      // one transition: the next build can only start afterwards, and a reader
+      // sees the new generation together with the final state.
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      published_.index = std::move(index);
+      published_.stats = stats;
+      building_ = false;
+      state_ = IndexState::kReady;
     }
-    {
-      std::lock_guard<std::mutex> lock(stats_mutex_);
-      stats_ = stats;
-    }
-    building_.store(false, std::memory_order_release);
-    state_.store(IndexState::kReady, std::memory_order_release);
     return stats;
   } catch (...) {
-    building_.store(false, std::memory_order_release);
-    // A failed rebuild must not take the previously built index offline.
-    state_.store(Snapshot() ? IndexState::kReady : IndexState::kEmpty,
-                 std::memory_order_release);
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      building_ = false;
+      // A failed first build leaves nothing to serve; a failed rebuild must not
+      // take the previously published generation offline.
+      state_ = published_.index ? IndexState::kReady : IndexState::kEmpty;
+    }
     throw;
   }
 }
 
-std::shared_ptr<const InvertedIndex> IndexService::Snapshot() const {
-  std::lock_guard<std::mutex> lock(index_mutex_);
-  return index_;
+IndexState IndexService::State() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return state_;
 }
 
-BuildStats IndexService::Stats() const {
-  std::lock_guard<std::mutex> lock(stats_mutex_);
-  return stats_;
+PublishedIndex IndexService::Snapshot() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return published_;
 }
 
 std::vector<std::filesystem::path> IndexService::ListDocuments() const {

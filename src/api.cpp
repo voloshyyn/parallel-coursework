@@ -132,15 +132,14 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
           if (index_service.State() == IndexState::kBuilding) {
             return JsonError(409, "index is building");
           }
-          const std::shared_ptr<const InvertedIndex> index =
-              index_service.Snapshot();
-          if (!index) {
+          const PublishedIndex snapshot = index_service.Snapshot();
+          if (!snapshot.index) {
             return JsonError(409, "index not built");
           }
 
           const auto started = std::chrono::steady_clock::now();
-          const std::vector<SearchResult> results =
-              engine.Search(*index, body->at("query").get<std::string>());
+          const std::vector<SearchResult> results = engine.Search(
+              *snapshot.index, body->at("query").get<std::string>());
           const auto elapsed =
               std::chrono::duration_cast<std::chrono::milliseconds>(
                   std::chrono::steady_clock::now() - started)
@@ -162,13 +161,15 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
 
   CROW_ROUTE(app, "/api/stats")
       .methods(crow::HTTPMethod::GET)([&index_service] {
-        const std::shared_ptr<const InvertedIndex> index =
-            index_service.Snapshot();
-        const BuildStats stats = index_service.Stats();
+        // One snapshot: documents, build time and threads always describe the
+        // same successful build.
+        const PublishedIndex snapshot = index_service.Snapshot();
         return JsonResponse(
-            200, Json{{"documents", index ? index->DocumentCount() : 0},
-                      {"index_build_time_ms", stats.build_time_ms},
-                      {"threads_used", stats.threads_used}});
+            200,
+            Json{{"documents",
+                  snapshot.index ? snapshot.index->DocumentCount() : 0},
+                 {"index_build_time_ms", snapshot.stats.build_time_ms},
+                 {"threads_used", snapshot.stats.threads_used}});
       });
 }
 
