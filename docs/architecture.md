@@ -128,6 +128,25 @@ Core (ThreadPool, InvertedIndex, Tokenizer)      Integrations (OllamaClient)
   обслуговуються іншими потоками `multithreaded()`; окремої черги задач для
   WebSocket немає.
 
+## Web UI
+
+Реалізація: `web/` (HTML, JS, CSS) і `src/web_ui.*`.
+
+- **Вбудовані активи:** CMake читає `web/index.html`, `web/app.js` і
+  `web/style.css` під час конфігурації та підставляє їх у `web_assets.h`, тому
+  сервер лишається одним бінарником і не потребує змонтованого каталогу статики
+  (образ копіює `web/` лише на етапі збирання). `CMAKE_CONFIGURE_DEPENDS`
+  перезапускає cmake, коли файл змінився.
+- **Маршрути:** `/`, `/app.js`, `/style.css` з `Cache-Control: no-cache`.
+- **Клієнт:** Vue 3 з CDN; кожен пошук — окреме WebSocket-з'єднання, яке клієнт
+  закриває після `done`. Панель етапів показує очікування / виконується / готово
+  / помилка, після `query_expansion` — оригінальний запит і терміни, після
+  `keyword_search` — `time_ms`.
+- **Помилки:** `stage: error` і обрив з'єднання показуються текстом, без
+  перепідключень; health-індикатор опитує `/api/health` раз на 5 с.
+- **XSS:** `doc_id`, snippet і терміни виводяться інтерполяцією Vue, яка екранує
+  HTML; `v-html` та `innerHTML` не використовуються.
+
 ## Ранжування та снипети
 
 Реалізація: `src/core/search_engine.*`.

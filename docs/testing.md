@@ -29,7 +29,8 @@
 `tests/inverted_index_test.cpp`, `tests/search_engine_test.cpp`,
 `tests/index_service_test.cpp`, `tests/api_test.cpp`,
 `tests/ollama_client_test.cpp`, `tests/search_pipeline_test.cpp`,
-`tests/ws_search_test.cpp`, `tests/ws_route_test.cpp`. Для індексу перевіряються,
+`tests/ws_search_test.cpp`, `tests/ws_route_test.cpp`, `tests/web_ui_test.cpp`.
+Для індексу перевіряються,
 зокрема, збіг postings послідовної і паралельної побудови, запис із 8 потоків,
 читання під час запису та однаковий результат за 1 і 64 шардів.
 
