@@ -50,6 +50,22 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(Crow)
 
+# The Web UI is embedded into the binary at configure time, so the server needs
+# no static directory next to it. CMAKE_CONFIGURE_DEPENDS reruns the configure
+# step when an asset changes.
+set(WEB_ASSET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/web)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  ${WEB_ASSET_DIR}/index.html
+  ${WEB_ASSET_DIR}/app.js
+  ${WEB_ASSET_DIR}/style.css)
+file(READ ${WEB_ASSET_DIR}/index.html INDEX_HTML)
+file(READ ${WEB_ASSET_DIR}/app.js APP_JS)
+file(READ ${WEB_ASSET_DIR}/style.css STYLE_CSS)
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/web/assets.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/web_assets.h
+  @ONLY)
+
 add_library(search_core STATIC
   src/api.cpp
   src/config.cpp
@@ -60,8 +76,10 @@ add_library(search_core STATIC
   src/integrations/ollama_client.cpp
   src/integrations/ollama_monitor.cpp
   src/services/index_service.cpp
-  src/services/search_pipeline.cpp)
+  src/services/search_pipeline.cpp
+  src/web_ui.cpp)
 target_include_directories(search_core PUBLIC src)
+target_include_directories(search_core PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(search_core
   PUBLIC
     Crow::Crow

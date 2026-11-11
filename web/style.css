@@ -1,0 +1,257 @@
+:root {
+  --bg: #f5f6fa;
+  --panel: #ffffff;
+  --text: #1f2430;
+  --muted: #6b7280;
+  --line: #e3e6ef;
+  --accent: #2f5bea;
+  --ok: #1a9e63;
+  --warn: #c9821a;
+  --fail: #cf3b3b;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* The page is rendered by Vue; hide the template until it mounts. */
+[v-cloak] {
+  display: none;
+}
+
+main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+h1 {
+  font-size: 26px;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 15px;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.health {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.health-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.health.is-ok .health-dot {
+  background: var(--ok);
+}
+
+.health.is-down .health-dot {
+  background: var(--fail);
+}
+
+.search {
+  display: flex;
+  gap: 10px;
+  margin: 24px 0 16px;
+}
+
+.search input {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.search input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.search button {
+  padding: 12px 22px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.search button:disabled {
+  background: #9aa8d8;
+  cursor: default;
+}
+
+.error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: #fdecec;
+  color: #8f2020;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.stage.is-running .dot {
+  background: var(--warn);
+}
+
+.stage.is-done .dot {
+  background: var(--ok);
+}
+
+.stage.is-error .dot {
+  background: var(--fail);
+}
+
+.stage-name {
+  flex: 1;
+}
+
+.stage-state {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.term {
+  display: inline-block;
+  margin: 0 6px 6px 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #2f3f8f;
+  font-size: 14px;
+}
+
+.muted,
+.empty {
+  color: var(--muted);
+  margin: 0;
+}
+
+.time {
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.results li {
+  border-left: 3px solid var(--line);
+  padding-left: 14px;
+}
+
+.hit-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0 0 4px;
+}
+
+.doc-id {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.score {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.snippet {
+  margin: 0;
+  color: #454b5a;
+  font-size: 15px;
+}
+
+@media (max-width: 560px) {
+  main {
+    padding: 20px 14px 48px;
+  }
+
+  .search {
+    flex-direction: column;
+  }
+
+  .search button {
+    width: 100%;
+  }
+}

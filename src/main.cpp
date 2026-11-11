@@ -11,6 +11,7 @@
 #include "integrations/ollama_monitor.h"
 #include "services/index_service.h"
 #include "services/search_pipeline.h"
+#include "web_ui.h"
 
 int main() {
   const search::Config config = search::Config::FromEnvironment();
@@ -31,6 +32,7 @@ int main() {
       });
 
   crow::SimpleApp app;
+  search::RegisterUiRoutes(app);
   search::RegisterHealthRoute(app, monitor);
   search::RegisterSearchRoutes(app, index_service, pipeline);
   search::RegisterSearchSocketRoute(app, index_service, pipeline);

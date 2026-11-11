@@ -1,0 +1,15 @@
+#pragma once
+
+#include <string_view>
+
+namespace search::web {
+
+// The Web UI is embedded at configure time (see CMakeLists.txt), so the server
+// stays one self-contained binary: no static directory has to be mounted next
+// to the executable. Delimiters are configurable in case an asset ever contains
+// the closing sequence.
+inline constexpr std::string_view kIndexHtml = R"web-html(@INDEX_HTML@)web-html";
+inline constexpr std::string_view kAppJs = R"web-js(@APP_JS@)web-js";
+inline constexpr std::string_view kStyleCss = R"web-css(@STYLE_CSS@)web-css";
+
+}  // namespace search::web

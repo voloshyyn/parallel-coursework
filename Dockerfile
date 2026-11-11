@@ -14,6 +14,7 @@ RUN apt-get update \
 WORKDIR /src
 COPY CMakeLists.txt ./
 COPY src ./src
+COPY web ./web
 
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TSAN=OFF -DBUILD_TESTING=OFF \
     && cmake --build build --parallel "$(nproc)"

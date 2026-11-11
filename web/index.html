@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Пошук книг з LLM</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  </head>
+  <body>
+    <main id="app" v-cloak>
+      <header class="topbar">
+        <h1>Пошук книг</h1>
+        <p class="health" :class="healthClass">
+          <span class="health-dot"></span>
+          Сервер: {{ healthText }} · Ollama: {{ ollamaText }}
+        </p>
+      </header>
+
+      <form class="search" @submit.prevent="search">
+        <input
+          v-model="query"
+          type="search"
+          placeholder="Наприклад: big fish"
+          aria-label="Пошуковий запит"
+          :disabled="searching"
+        />
+        <button type="submit" :disabled="searching || !query.trim()">
+          {{ searching ? 'Шукаємо…' : 'Шукати' }}
+        </button>
+      </form>
+
+      <p v-if="error" class="error" role="alert">{{ error }}</p>
+
+      <section class="panel" aria-label="Етапи пошуку">
+        <h2>Етапи</h2>
+        <ol class="stages">
+          <li
+            v-for="stage in stages"
+            :key="stage.id"
+            class="stage"
+            :class="'is-' + stage.state"
+          >
+            <span class="dot"></span>
+            <span class="stage-name">{{ stage.label }}</span>
+            <span class="stage-state">{{ stateText(stage.state) }}</span>
+          </li>
+        </ol>
+      </section>
+
+      <section v-if="expansion" class="panel">
+        <h2>Розширення запиту</h2>
+        <p>
+          <span class="label">Оригінальний запит:</span>
+          {{ expansion.original }}
+        </p>
+        <p v-if="expansion.expanded_terms.length">
+          <span class="label">Розширені терміни:</span>
+          <span
+            v-for="term in expansion.expanded_terms"
+            :key="term"
+            class="term"
+          >{{ term }}</span>
+        </p>
+        <p v-else class="muted">
+          Ollama не дала термінів — пошук іде за оригінальним запитом.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>
+          Результати
+          <span v-if="searchTimeMs !== null" class="time">{{ searchTimeMs }} мс</span>
+        </h2>
+        <p v-if="finished && !results.length" class="empty">Нічого не знайдено</p>
+        <ol class="results">
+          <li v-for="hit in results" :key="hit.doc_id">
+            <p class="hit-head">
+              <span class="doc-id">{{ hit.doc_id }}</span>
+              <span class="score">score={{ hit.score.toFixed(2) }}</span>
+            </p>
+            <p class="snippet">{{ hit.snippet }}</p>
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
