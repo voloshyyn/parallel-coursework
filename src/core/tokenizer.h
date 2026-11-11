@@ -128,14 +128,18 @@ inline char32_t LowerCodePoint(char32_t code_point) noexcept {
   return code_point;
 }
 
-// Calls `fn(const std::string&)` for every token of `text`, reusing one buffer
-// so indexing a large document does not allocate per token. The string passed
-// to `fn` is only valid during the call; copy it to keep it.
+// Calls `fn(const std::string&, std::size_t)` for every token of `text`, where
+// the second argument is the byte offset of the token in `text`. Returning
+// false from `fn` stops the iteration, so a caller that only needs the first
+// match does not scan the rest of the document. Reuses one buffer, so indexing
+// a large document does not allocate per token. The string passed to `fn` is
+// only valid during the call; copy it to keep it.
 template <typename Fn>
-void ForEachToken(std::string_view text, Fn&& fn) {
+void ForEachTokenAt(std::string_view text, Fn&& fn) {
   std::string buffer;
   std::size_t pos = 0;
   while (pos < text.size()) {
+    const std::size_t token_start = pos;
     const std::optional<char32_t> code_point = DecodeUtf8(text, pos);
     if (!code_point || !IsWordCodePoint(*code_point)) {
       continue;
@@ -152,8 +156,19 @@ void ForEachToken(std::string_view text, Fn&& fn) {
       AppendUtf8(LowerCodePoint(*following), buffer);
       pos = next;
     }
-    fn(buffer);
+    if (!fn(buffer, token_start)) {
+      return;
+    }
   }
+}
+
+// Calls `fn(const std::string&)` for every token of `text`.
+template <typename Fn>
+void ForEachToken(std::string_view text, Fn&& fn) {
+  ForEachTokenAt(text, [&fn](const std::string& token, std::size_t) {
+    fn(token);
+    return true;
+  });
 }
 
 }  // namespace detail

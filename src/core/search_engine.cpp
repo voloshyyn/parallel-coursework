@@ -27,26 +27,6 @@ std::vector<std::string> UniqueTerms(std::string_view query) {
   return terms;
 }
 
-// Lowercased copy of `text` with byte offsets preserved: the tokenizer folds
-// only ASCII and Cyrillic, where a code point keeps its UTF-8 length. Offsets
-// found in the copy are therefore valid in the original text.
-std::string LowercaseCopy(std::string_view text) {
-  std::string lowered;
-  lowered.reserve(text.size());
-  std::size_t pos = 0;
-  while (pos < text.size()) {
-    const std::size_t start = pos;
-    const auto code_point = detail::DecodeUtf8(text, pos);
-    if (!code_point) {
-      // Invalid byte: copy one byte unchanged so offsets stay aligned.
-      lowered.append(text.substr(start, pos - start));
-      continue;
-    }
-    detail::AppendUtf8(detail::LowerCodePoint(*code_point), lowered);
-  }
-  return lowered;
-}
-
 // Collapses runs of whitespace into single spaces and trims the ends, so a
 // snippet stays on one line in JSON and in the CLI.
 std::string CollapseWhitespace(std::string_view window) {
@@ -153,17 +133,24 @@ std::string SearchEngine::Snippet(const std::string& doc_id,
     return {};
   }
 
-  const std::string lowered = LowercaseCopy(text);
+  // Query terms come from the same tokenizer as the index, so a document token
+  // equals a query term only when the whole token matches. Scanning stops at
+  // the first such token: that is the occurrence the snippet must show, even if
+  // a term also appears as a substring of an earlier word (for example "cat"
+  // inside "education").
+  const std::unordered_set<std::string> wanted(terms.begin(), terms.end());
   std::size_t match = std::string::npos;
   std::size_t match_length = 0;
-  for (const std::string& term : terms) {
-    const std::size_t position = lowered.find(term);
-    if (position != std::string::npos &&
-        (match == std::string::npos || position < match)) {
-      match = position;
-      match_length = term.size();
-    }
-  }
+  detail::ForEachTokenAt(
+      text, [&wanted, &match, &match_length](const std::string& token,
+                                             std::size_t offset) {
+        if (!wanted.contains(token)) {
+          return true;
+        }
+        match = offset;
+        match_length = token.size();
+        return false;
+      });
 
   std::size_t begin = 0;
   std::size_t end = std::min(text.size(), kSnippetBefore + kSnippetAfter);

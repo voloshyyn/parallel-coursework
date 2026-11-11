@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "core/inverted_index.h"
@@ -32,6 +33,16 @@ std::vector<std::string> DocIds(const std::vector<SearchResult>& results) {
     ids.push_back(result.doc_id);
   }
   return ids;
+}
+
+// `unit` repeated `times` times; keeps multi-byte text padding readable.
+std::string Repeat(std::string_view unit, std::size_t times) {
+  std::string result;
+  result.reserve(unit.size() * times);
+  for (std::size_t i = 0; i < times; ++i) {
+    result.append(unit);
+  }
+  return result;
 }
 
 }  // namespace
@@ -180,4 +191,43 @@ TEST(SearchEngine, HitWithoutFileOnDiskHasEmptySnippet) {
   ASSERT_EQ(1U, results.size());
   EXPECT_EQ("missing.txt", results[0].doc_id);
   EXPECT_TRUE(results[0].snippet.empty());
+}
+
+TEST(SearchEngine, SnippetMatchesWholeTokenNotSubstring) {
+  TempDir dir;
+  InvertedIndex index;
+  // "education" contains "cat" as a substring, but the standalone token is far
+  // to the right: the snippet must be built around the token, not the
+  // substring.
+  const std::string text = std::string(300, 'x') + " education " +
+                           std::string(300, 'y') + " cat " +
+                           std::string(300, 'z');
+  AddDocuments(index, dir, {"a.txt"}, {text});
+  const SearchEngine engine(dir.path().string());
+
+  const std::vector<SearchResult> results = engine.Search(index, "cat");
+
+  ASSERT_EQ(1U, results.size());
+  EXPECT_NE(std::string::npos, results[0].snippet.find(" cat "));
+  EXPECT_EQ(std::string::npos, results[0].snippet.find("education"));
+}
+
+TEST(SearchEngine, SnippetMatchesFoldedCyrillicTokenBetweenPunctuation) {
+  TempDir dir;
+  InvertedIndex index;
+  // Cyrillic letters are multi-byte, so the padding is repeated as a string
+  // instead of a character constant.
+  const std::string text = Repeat("д", 300) + " «освіта» " +
+                           Repeat("ї", 300) + " «Світ» " +
+                           Repeat("ж", 300);
+  AddDocuments(index, dir, {"a.txt"}, {text});
+  const SearchEngine engine(dir.path().string());
+
+  const std::vector<SearchResult> results = engine.Search(index, "світ");
+
+  ASSERT_EQ(1U, results.size());
+  // The whole token is shown with its original case; "освіта" contains
+  // "світ" as a substring but is a different token and must not be picked.
+  EXPECT_NE(std::string::npos, results[0].snippet.find("«Світ»"));
+  EXPECT_EQ(std::string::npos, results[0].snippet.find("освіта"));
 }
