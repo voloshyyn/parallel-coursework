@@ -4,6 +4,7 @@
 #include <chrono>
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "api.h"
 #include "core/search_engine.h"
 #include "services/index_service.h"
+#include "services/search_pipeline.h"
 #include "test_support.h"
 
 namespace {
@@ -22,15 +24,16 @@ using namespace std::chrono_literals;
 using search::IndexService;
 using search::IndexState;
 using search::SearchEngine;
+using search::SearchPipeline;
 using search::test_support::BuildGate;
 using search::test_support::TempDir;
 
 // Runs the REST search routes on a fixed port for the lifetime of the object.
 class ApiServer {
  public:
-  ApiServer(IndexService& service, const SearchEngine& engine, int port)
+  ApiServer(IndexService& service, const SearchPipeline& pipeline, int port)
       : port_(port) {
-    search::RegisterSearchRoutes(app_, service, engine);
+    search::RegisterSearchRoutes(app_, service, pipeline);
     app_.loglevel(crow::LogLevel::Critical);
     app_.bindaddr("127.0.0.1").port(port_).multithreaded();
     worker_ = std::thread([this] { app_.run(); });
@@ -86,7 +89,8 @@ TEST(SearchApi, RejectsInvalidThreads) {
   dir.Write("a.txt", "alpha");
   IndexService service(dir.path().string());
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18090);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18090);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
@@ -118,7 +122,8 @@ TEST(SearchApi, IndexesDocumentsAndServesStats) {
   dir.Write("b.txt", "the whale whale");
   IndexService service(dir.path().string());
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18091);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18091);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
@@ -147,7 +152,8 @@ TEST(SearchApi, DefaultsToFourThreads) {
   dir.Write("a.txt", "alpha");
   IndexService service(dir.path().string());
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18092);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18092);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
@@ -166,7 +172,8 @@ TEST(SearchApi, SearchBeforeIndexReturns409) {
   TempDir dir;
   IndexService service(dir.path().string());
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18093);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18093);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
@@ -184,7 +191,8 @@ TEST(SearchApi, RejectsInvalidSearchRequests) {
   dir.Write("a.txt", "alpha");
   IndexService service(dir.path().string());
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18094);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18094);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
@@ -210,7 +218,8 @@ TEST(SearchApi, SearchesKeywordModeWithRankedResults) {
   dir.Write("b.txt", "whale whale");
   IndexService service(dir.path().string());
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18095);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18095);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
   const auto indexed =
@@ -254,7 +263,8 @@ TEST(SearchApi, SearchDuringBuildReturns409) {
                          return gate.Read(path);
                        });
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18096);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18096);
   ASSERT_TRUE(server.WaitUntilReady());
 
   int build_status = 0;
@@ -310,7 +320,8 @@ TEST(SearchApi, SearchDuringRebuildReturns409) {
                          return gate.Read(path);
                        });
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18097);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18097);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
@@ -370,7 +381,8 @@ TEST(SearchApi, StatsMatchTheLastSuccessfulBuild) {
   dir.Write("c.txt", "gamma");
   IndexService service(dir.path().string());
   const SearchEngine engine(dir.path().string());
-  ApiServer server(service, engine, 18098);
+  const SearchPipeline pipeline(engine);
+  ApiServer server(service, pipeline, 18098);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
@@ -397,4 +409,74 @@ TEST(SearchApi, StatsMatchTheLastSuccessfulBuild) {
   EXPECT_EQ(1, body.at("documents"));
   EXPECT_EQ(5, body.at("threads_used"));
   EXPECT_GE(body.at("index_build_time_ms").get<long long>(), 0);
+}
+
+// Query expansion reaches the REST search: a synonym finds a document even
+// when the original query has no matching token, and the response keeps the
+// documented shape (REST does not expose the expanded terms).
+TEST(SearchApi, SearchUsesExpandedTerms) {
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  dir.Write("b.txt", "whale");
+  IndexService service(dir.path().string());
+  const SearchEngine engine(dir.path().string());
+  const SearchPipeline pipeline(engine, [](std::string_view) {
+    return std::vector<std::string>{"whale"};
+  });
+  ApiServer server(service, pipeline, 18099);
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+
+  const auto indexed =
+      client.Post("/api/index", R"({"threads": 2})", "application/json");
+  ASSERT_TRUE(indexed);
+  ASSERT_EQ(200, indexed->status) << indexed->body;
+
+  const auto result = client.Post(
+      "/api/search", R"({"query": "big fish", "mode": "keyword"})",
+      "application/json");
+  ASSERT_TRUE(result);
+  ASSERT_EQ(200, result->status) << result->body;
+  const nlohmann::json body = ParseBody(result);
+  ASSERT_EQ(1U, body.at("results").size());
+  EXPECT_EQ("b.txt", body.at("results").at(0).at("doc_id"));
+  // The fixed contract has exactly these two top-level fields.
+  EXPECT_EQ(2U, body.size());
+  EXPECT_EQ(std::string::npos, result->body.find("expanded_terms"));
+}
+
+// When expansion yields nothing (Ollama unavailable), the search continues with
+// the original query instead of failing.
+TEST(SearchApi, SearchFallsBackToOriginalQueryWithoutExpansion) {
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  IndexService service(dir.path().string());
+  const SearchEngine engine(dir.path().string());
+  const SearchPipeline pipeline(engine, [](std::string_view) {
+    return std::vector<std::string>{};
+  });
+  ApiServer server(service, pipeline, 18100);
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+
+  const auto indexed =
+      client.Post("/api/index", R"({"threads": 1})", "application/json");
+  ASSERT_TRUE(indexed);
+  ASSERT_EQ(200, indexed->status) << indexed->body;
+
+  const auto found = client.Post(
+      "/api/search", R"({"query": "alpha", "mode": "keyword"})",
+      "application/json");
+  ASSERT_TRUE(found);
+  ASSERT_EQ(200, found->status) << found->body;
+  const nlohmann::json found_body = ParseBody(found);
+  ASSERT_EQ(1U, found_body.at("results").size());
+  EXPECT_EQ("a.txt", found_body.at("results").at(0).at("doc_id"));
+
+  const auto missing = client.Post(
+      "/api/search", R"({"query": "big fish", "mode": "keyword"})",
+      "application/json");
+  ASSERT_TRUE(missing);
+  EXPECT_EQ(200, missing->status);
+  EXPECT_TRUE(ParseBody(missing).at("results").empty());
 }

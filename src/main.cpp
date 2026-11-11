@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <string_view>
 
 #include "api.h"
 #include "config.h"
@@ -9,6 +10,7 @@
 #include "integrations/ollama_client.h"
 #include "integrations/ollama_monitor.h"
 #include "services/index_service.h"
+#include "services/search_pipeline.h"
 
 int main() {
   const search::Config config = search::Config::FromEnvironment();
@@ -21,10 +23,16 @@ int main() {
 
   search::IndexService index_service(config.data_dir);
   const search::SearchEngine engine(config.data_dir);
+  // Query expansion is best effort: an empty term list means the search runs
+  // on the original query.
+  const search::SearchPipeline pipeline(
+      engine, [&ollama, model = config.ollama_model](std::string_view query) {
+        return ollama.ExpandQuery(query, model);
+      });
 
   crow::SimpleApp app;
   search::RegisterHealthRoute(app, monitor);
-  search::RegisterSearchRoutes(app, index_service, engine);
+  search::RegisterSearchRoutes(app, index_service, pipeline);
 
   app.loglevel(crow::LogLevel::Warning);
   std::cout << "search_server listening on 0.0.0.0:" << config.port

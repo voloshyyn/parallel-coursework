@@ -4,9 +4,9 @@
 
 #include <crow.h>
 
-#include "core/search_engine.h"
 #include "integrations/ollama_monitor.h"
 #include "services/index_service.h"
+#include "services/search_pipeline.h"
 
 namespace search {
 
@@ -18,8 +18,8 @@ std::string HealthJson(bool ollama_available);
 void RegisterHealthRoute(crow::SimpleApp& app, const OllamaMonitor& monitor);
 
 // Registers POST /api/index, POST /api/search and GET /api/stats. Handlers only
-// validate the request and delegate to IndexService and SearchEngine.
+// validate the request and delegate to IndexService and SearchPipeline.
 void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
-                          const SearchEngine& engine);
+                          const SearchPipeline& pipeline);
 
 }  // namespace search

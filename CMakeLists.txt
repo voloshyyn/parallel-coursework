@@ -59,7 +59,8 @@ add_library(search_core STATIC
   src/core/tokenizer.cpp
   src/integrations/ollama_client.cpp
   src/integrations/ollama_monitor.cpp
-  src/services/index_service.cpp)
+  src/services/index_service.cpp
+  src/services/search_pipeline.cpp)
 target_include_directories(search_core PUBLIC src)
 target_link_libraries(search_core
   PUBLIC

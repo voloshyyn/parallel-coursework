@@ -2,13 +2,11 @@
 
 #include <nlohmann/json.hpp>
 
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <string>
-#include <vector>
+#include <utility>
 
 namespace search {
 namespace {
@@ -81,7 +79,7 @@ void RegisterHealthRoute(crow::SimpleApp& app, const OllamaMonitor& monitor) {
 }
 
 void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
-                          const SearchEngine& engine) {
+                          const SearchPipeline& pipeline) {
   CROW_ROUTE(app, "/api/index")
       .methods(crow::HTTPMethod::POST)([&index_service](
                                              const crow::request& request) {
@@ -111,7 +109,7 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
       });
 
   CROW_ROUTE(app, "/api/search")
-      .methods(crow::HTTPMethod::POST)([&index_service, &engine](
+      .methods(crow::HTTPMethod::POST)([&index_service, &pipeline](
                                              const crow::request& request) {
         try {
           std::string error;
@@ -137,23 +135,20 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
             return JsonError(409, "index not built");
           }
 
-          const auto started = std::chrono::steady_clock::now();
-          const std::vector<SearchResult> results = engine.Search(
-              *snapshot.index, body->at("query").get<std::string>());
-          const auto elapsed =
-              std::chrono::duration_cast<std::chrono::milliseconds>(
-                  std::chrono::steady_clock::now() - started)
-                  .count();
+          const std::string query = body->at("query").get<std::string>();
+          // Expansion runs before the search and never fails the request: a
+          // missing Ollama leaves the original query in place.
+          const SearchOutcome outcome = pipeline.Run(*snapshot.index, query);
 
           Json hits = Json::array();
-          for (const SearchResult& result : results) {
+          for (const SearchResult& result : outcome.results) {
             hits.push_back(Json{{"doc_id", result.doc_id},
                                 {"score", result.score},
                                 {"snippet", result.snippet}});
           }
           return JsonResponse(200,
                               Json{{"results", std::move(hits)},
-                                   {"time_ms", elapsed}});
+                                   {"time_ms", outcome.search_time_ms}});
         } catch (const std::exception& exception) {
           return JsonError(500, exception.what());
         }
