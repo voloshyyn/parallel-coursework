@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace search {
 namespace {
@@ -57,6 +58,30 @@ std::optional<Json> ParseObjectBody(const std::string& body, std::string& error)
     return std::nullopt;
   }
   return parsed;
+}
+
+// One hit shape for REST and WebSocket, so both always carry doc_id, score and
+// snippet and nothing else.
+Json HitsJson(const std::vector<SearchResult>& results) {
+  Json hits = Json::array();
+  for (const SearchResult& result : results) {
+    hits.push_back(Json{{"doc_id", result.doc_id},
+                        {"score", result.score},
+                        {"snippet", result.snippet}});
+  }
+  return hits;
+}
+
+void SendStage(crow::websocket::connection& connection, const Json& message) {
+  connection.send_text(message.dump());
+}
+
+// Our own convention, not part of the syllabus contract: an unusable request
+// produces exactly one error stage, and the connection stays open.
+void SendSocketError(crow::websocket::connection& connection,
+                     const std::string& message) {
+  SendStage(connection, Json{{"stage", "error"},
+                             {"data", Json{{"message", message}}}});
 }
 
 }  // namespace
@@ -140,14 +165,8 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
           // missing Ollama leaves the original query in place.
           const SearchOutcome outcome = pipeline.Run(*snapshot.index, query);
 
-          Json hits = Json::array();
-          for (const SearchResult& result : outcome.results) {
-            hits.push_back(Json{{"doc_id", result.doc_id},
-                                {"score", result.score},
-                                {"snippet", result.snippet}});
-          }
           return JsonResponse(200,
-                              Json{{"results", std::move(hits)},
+                              Json{{"results", HitsJson(outcome.results)},
                                    {"time_ms", outcome.search_time_ms}});
         } catch (const std::exception& exception) {
           return JsonError(500, exception.what());
@@ -165,6 +184,69 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
                   snapshot.index ? snapshot.index->DocumentCount() : 0},
                  {"index_build_time_ms", snapshot.stats.build_time_ms},
                  {"threads_used", snapshot.stats.threads_used}});
+      });
+}
+
+void HandleSearchSocketMessage(crow::websocket::connection& connection,
+                               IndexService& index_service,
+                               const SearchPipeline& pipeline,
+                               const std::string& message) {
+  try {
+    std::string error;
+    const std::optional<Json> body = ParseObjectBody(message, error);
+    if (!body) {
+      SendSocketError(connection, error);
+      return;
+    }
+    if (!body->contains("query") || !body->at("query").is_string() ||
+        body->at("query").get<std::string>().empty()) {
+      SendSocketError(connection, "query must be a non-empty string");
+      return;
+    }
+
+    // The same index rules as POST /api/search: no search while a build runs
+    // and none before the first successful build.
+    if (index_service.State() == IndexState::kBuilding) {
+      SendSocketError(connection, "index is building");
+      return;
+    }
+    const PublishedIndex snapshot = index_service.Snapshot();
+    if (!snapshot.index) {
+      SendSocketError(connection, "index not built");
+      return;
+    }
+
+    const SearchOutcome outcome =
+        pipeline.Run(*snapshot.index, body->at("query").get<std::string>());
+
+    // One message per stage, in the order docs/api.md fixes. REST hides the
+    // expanded terms; this is where they reach the client.
+    Json terms = Json::array();
+    for (const std::string& term : outcome.expanded_terms) {
+      terms.push_back(term);
+    }
+    SendStage(connection,
+              Json{{"stage", "query_expansion"},
+                   {"data", Json{{"original", outcome.original_query},
+                                 {"expanded_terms", std::move(terms)}}}});
+    SendStage(connection,
+              Json{{"stage", "keyword_search"},
+                   {"data", Json{{"results", HitsJson(outcome.results)},
+                                 {"time_ms", outcome.search_time_ms}}}});
+    SendStage(connection, Json{{"stage", "done"}});
+  } catch (const std::exception& exception) {
+    SendSocketError(connection, exception.what());
+  }
+}
+
+void RegisterSearchSocketRoute(crow::SimpleApp& app,
+                               IndexService& index_service,
+                               const SearchPipeline& pipeline) {
+  CROW_WEBSOCKET_ROUTE(app, "/ws/search")
+      .onmessage([&index_service, &pipeline](
+                     crow::websocket::connection& connection,
+                     const std::string& message, bool /*is_binary*/) {
+        HandleSearchSocketMessage(connection, index_service, pipeline, message);
       });
 }
 

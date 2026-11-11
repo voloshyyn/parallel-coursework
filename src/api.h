@@ -22,4 +22,17 @@ void RegisterHealthRoute(crow::SimpleApp& app, const OllamaMonitor& monitor);
 void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
                           const SearchPipeline& pipeline);
 
+// Handles one message of /ws/search: answers with the query_expansion,
+// keyword_search and done stages, or with a single error stage. The connection
+// stays open, so the client may send another query.
+void HandleSearchSocketMessage(crow::websocket::connection& connection,
+                               IndexService& index_service,
+                               const SearchPipeline& pipeline,
+                               const std::string& message);
+
+// Registers the /ws/search WebSocket route on the application.
+void RegisterSearchSocketRoute(crow::SimpleApp& app,
+                               IndexService& index_service,
+                               const SearchPipeline& pipeline);
+
 }  // namespace search

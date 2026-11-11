@@ -33,6 +33,7 @@ int main() {
   crow::SimpleApp app;
   search::RegisterHealthRoute(app, monitor);
   search::RegisterSearchRoutes(app, index_service, pipeline);
+  search::RegisterSearchSocketRoute(app, index_service, pipeline);
 
   app.loglevel(crow::LogLevel::Warning);
   std::cout << "search_server listening on 0.0.0.0:" << config.port
