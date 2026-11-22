@@ -5,6 +5,7 @@
 #include <atomic>
 #include <barrier>
 #include <chrono>
+#include <semaphore>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -112,6 +113,61 @@ TEST(ThreadPool, RejectsTaskAfterShutdown) {
   pool.Shutdown();
 
   EXPECT_FALSE(pool.Submit([] {}));
+}
+
+TEST(ThreadPool, ReportsItsQueueCapacity) {
+  const search::ThreadPool bounded(2, 5);
+  const search::ThreadPool unbounded(2);
+
+  EXPECT_EQ(5U, bounded.MaxQueue());
+  EXPECT_EQ(0U, unbounded.MaxQueue());
+}
+
+// Regression: before the bounded queue, Submit() always accepted work. A
+// burst of requests then grew the queue without limit.
+TEST(ThreadPool, RejectsTasksWhenTheBoundedQueueIsFull) {
+  search::ThreadPool pool(1, 2);
+  std::binary_semaphore worker_started{0};
+  std::binary_semaphore release_worker{0};
+
+  ASSERT_TRUE(pool.Submit([&worker_started, &release_worker] {
+    worker_started.release();
+    release_worker.acquire();
+  }));
+  worker_started.acquire();
+
+  // The single worker is blocked, so these two tasks sit in a queue of
+  // capacity two and the third has nowhere to go.
+  ASSERT_TRUE(pool.Submit([] {}));
+  ASSERT_TRUE(pool.Submit([] {}));
+  EXPECT_FALSE(pool.Submit([] {}));
+
+  release_worker.release();
+  pool.Shutdown();
+
+  // Once drained, the pool accepts work again.
+  search::ThreadPool fresh(1, 1);
+  ASSERT_TRUE(fresh.Submit([] {}));
+  fresh.Shutdown();
+}
+
+// Regression: a throwing std::thread constructor in the middle of the loop used
+// to leave the already-created workers joinable; ~ThreadPool() then called
+// std::terminate. The constructor must stop and join them before rethrowing.
+// The failure is injected by a factory, not by exhausting machine resources.
+TEST(ThreadPool, JoinsCreatedWorkersWhenThreadCreationFails) {
+  int created = 0;
+  search::ThreadPool::ThreadFactory factory =
+      [&created](std::function<void()> task) {
+        ++created;
+        if (created == 2) {
+          throw std::runtime_error("injected thread creation failure");
+        }
+        return std::thread(std::move(task));
+      };
+
+  EXPECT_THROW(search::ThreadPool pool(4, 0, factory), std::runtime_error);
+  EXPECT_EQ(2, created);
 }
 
 TEST(ThreadPool, RejectsEmptyTask) {

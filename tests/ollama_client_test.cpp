@@ -4,6 +4,7 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <functional>
@@ -117,6 +118,37 @@ MockOllama::Handler Reply(int status, std::string body,
   };
 }
 
+// Streams a JSON answer in small pieces with a pause between them. A per-read
+// timeout never fires because every wait is short; only a total-request
+// deadline can stop the call.
+MockOllama::Handler SlowChunkedReply(std::chrono::milliseconds pause,
+                                     int chunks) {
+  return [pause, chunks](const httplib::Request&,
+                         httplib::Response& response) {
+    response.status = 200;
+    response.set_chunked_content_provider(
+        "application/json",
+        [pause, chunks, sent = 0](std::size_t,
+                                  httplib::DataSink& sink) mutable {
+          if (sent == 0) {
+            const std::string head = R"({"response":")";
+            sink.write(head.data(), head.size());
+          }
+          if (sent < chunks) {
+            std::this_thread::sleep_for(pause);
+            const std::string piece = "whale ";
+            sink.write(piece.data(), piece.size());
+            ++sent;
+            return true;
+          }
+          const std::string tail = R"("})";
+          sink.write(tail.data(), tail.size());
+          sink.done();
+          return true;
+        });
+  };
+}
+
 std::string PortUrl(int port) {
   return "http://127.0.0.1:" + std::to_string(port);
 }
@@ -225,4 +257,68 @@ TEST(OllamaClient, ProbesAvailabilityWithTheTagsEndpoint) {
 
   const OllamaClient unavailable("http://127.0.0.1:1", 200ms, 200ms);
   EXPECT_FALSE(unavailable.IsAvailable());
+}
+
+// Regression: "1. whale" used to tokenize as "1", "whale", so the numbers ate
+// the eight-term budget and pushed real terms out.
+TEST(OllamaClient, IgnoresNumberedListMarkers) {
+  MockOllama server(18141, Reply(200,
+      R"({"response":"1. whale\n2. ocean\n3. sea\n4. marine\n5. fish"})"));
+  ASSERT_TRUE(server.WaitUntilReady());
+  const OllamaClient client(PortUrl(server.port()), 500ms, 2s);
+
+  const std::vector<std::string> terms = client.ExpandQuery("big", "model");
+
+  ASSERT_EQ(5U, terms.size());
+  EXPECT_EQ("whale", terms[0]);
+  EXPECT_EQ("ocean", terms[1]);
+  EXPECT_EQ("sea", terms[2]);
+  EXPECT_EQ("marine", terms[3]);
+  EXPECT_EQ("fish", terms[4]);
+}
+
+TEST(OllamaClient, IgnoresInlineNumberedMarkers) {
+  MockOllama server(18143,
+                    Reply(200, R"({"response":"1. whale, 2. sea, 3. marine"})"));
+  ASSERT_TRUE(server.WaitUntilReady());
+  const OllamaClient client(PortUrl(server.port()), 500ms, 2s);
+
+  const std::vector<std::string> terms = client.ExpandQuery("big", "model");
+
+  ASSERT_EQ(3U, terms.size());
+  EXPECT_EQ("whale", terms[0]);
+  EXPECT_EQ("sea", terms[1]);
+  EXPECT_EQ("marine", terms[2]);
+}
+
+// The marker stripper must not eat content: a technical token such as C++20
+// and a four-digit year are data, not list numbers.
+TEST(OllamaClient, KeepsMeaningfulNumbersInTheAnswer) {
+  MockOllama server(18142,
+                    Reply(200, R"({"response":"C++20, 2020, whale"})"));
+  ASSERT_TRUE(server.WaitUntilReady());
+  const OllamaClient client(PortUrl(server.port()), 500ms, 2s);
+
+  const std::vector<std::string> terms = client.ExpandQuery("fish", "model");
+
+  EXPECT_NE(terms.end(), std::find(terms.begin(), terms.end(), "c"));
+  EXPECT_NE(terms.end(), std::find(terms.begin(), terms.end(), "20"));
+  EXPECT_NE(terms.end(), std::find(terms.begin(), terms.end(), "2020"));
+  EXPECT_NE(terms.end(), std::find(terms.begin(), terms.end(), "whale"));
+}
+
+// Regression: read/write timeouts are per operation, so a model that keeps
+// sending tokens never hit them. The whole generation must respect one
+// deadline.
+TEST(OllamaClient, StopsAVerySlowStreamAtTheGenerationDeadline) {
+  MockOllama server(18140, SlowChunkedReply(30ms, 40));  // ~1.2 s unabridged
+  ASSERT_TRUE(server.WaitUntilReady());
+  const OllamaClient client(PortUrl(server.port()), 500ms, 50ms);
+
+  const auto started = std::chrono::steady_clock::now();
+  const std::vector<std::string> terms = client.ExpandQuery("big", "model");
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+
+  EXPECT_TRUE(terms.empty());
+  EXPECT_LT(elapsed, 400ms);
 }

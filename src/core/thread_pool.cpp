@@ -19,14 +19,41 @@ void LogTaskFailure(const std::string& message) {
 
 }  // namespace
 
-ThreadPool::ThreadPool(std::size_t thread_count) : thread_count_(thread_count) {
+ThreadPool::ThreadPool(std::size_t thread_count, std::size_t max_queue,
+                       ThreadFactory thread_factory)
+    : thread_count_(thread_count), max_queue_(max_queue) {
   if (thread_count_ == 0) {
     throw std::invalid_argument("thread pool requires at least one thread");
   }
 
-  workers_.reserve(thread_count_);
-  for (std::size_t i = 0; i < thread_count_; ++i) {
-    workers_.emplace_back(&ThreadPool::WorkerLoop, this);
+  ThreadFactory create =
+      thread_factory
+          ? std::move(thread_factory)
+          : ThreadFactory([](std::function<void()> task) {
+              return std::thread(std::move(task));
+            });
+
+  try {
+    workers_.reserve(thread_count_);
+    for (std::size_t i = 0; i < thread_count_; ++i) {
+      workers_.push_back(create([this] { WorkerLoop(); }));
+    }
+  } catch (...) {
+    // A partially constructed pool must not leave joinable threads behind:
+    // their destructors would call std::terminate. Wake the created workers,
+    // let them leave, and only then rethrow the original exception.
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      stopping_ = true;
+    }
+    has_task_.notify_all();
+    for (std::thread& worker : workers_) {
+      if (worker.joinable()) {
+        worker.join();
+      }
+    }
+    workers_.clear();
+    throw;
   }
 }
 
@@ -41,7 +68,10 @@ bool ThreadPool::Submit(std::function<void()> task) {
     if (stopping_) {
       return false;
     }
-    tasks_.push(std::move(task));
+    if (max_queue_ != 0 && tasks_.size() >= max_queue_) {
+      return false;
+    }
+    tasks_.push_back(std::move(task));
   }
   has_task_.notify_one();
   return true;
@@ -76,7 +106,7 @@ void ThreadPool::WorkerLoop() {
         return;
       }
       task = std::move(tasks_.front());
-      tasks_.pop();
+      tasks_.pop_front();
     }
 
     // A failing task must not terminate the worker thread.

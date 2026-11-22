@@ -2,9 +2,9 @@
 
 #include <condition_variable>
 #include <cstddef>
+#include <deque>
 #include <functional>
 #include <mutex>
-#include <queue>
 #include <thread>
 #include <vector>
 
@@ -17,15 +17,26 @@ namespace search {
 // swallowed to keep the remaining tasks running.
 class ThreadPool {
  public:
-  // Throws std::invalid_argument when thread_count is zero.
-  explicit ThreadPool(std::size_t thread_count);
+  // Creates one worker thread from a task. Tests inject a factory that throws
+  // to exercise partial construction; production keeps the std::thread one.
+  using ThreadFactory = std::function<std::thread(std::function<void()>)>;
+
+  // `max_queue` is the maximum number of waiting tasks (0 means unbounded).
+  // `thread_factory` is a test seam; an empty value creates std::thread.
+  //
+  // Throws std::invalid_argument when thread_count is zero. If creating any
+  // worker throws, the workers already created are stopped and joined before
+  // the exception is rethrown, so no joinable thread is left behind.
+  explicit ThreadPool(std::size_t thread_count, std::size_t max_queue = 0,
+                      ThreadFactory thread_factory = {});
   ~ThreadPool();
 
   ThreadPool(const ThreadPool&) = delete;
   ThreadPool& operator=(const ThreadPool&) = delete;
 
   // Enqueues a task and wakes one worker. Returns false when the pool has
-  // already started shutting down, in which case the task is not executed.
+  // already started shutting down or when the bounded queue is full; the task
+  // is not executed in either case.
   bool Submit(std::function<void()> task);
 
   // Stops accepting tasks, waits until the queue is drained and every running
@@ -40,12 +51,16 @@ class ThreadPool {
   // Number of worker threads created at construction.
   std::size_t ThreadCount() const noexcept { return thread_count_; }
 
+  // Maximum number of waiting tasks; zero means unbounded.
+  std::size_t MaxQueue() const noexcept { return max_queue_; }
+
  private:
   void WorkerLoop();
 
   const std::size_t thread_count_;
+  const std::size_t max_queue_;
   std::vector<std::thread> workers_;
-  std::queue<std::function<void()>> tasks_;
+  std::deque<std::function<void()>> tasks_;
   mutable std::mutex mutex_;
   // Serialises shutdown so only one caller joins workers_ at a time. Held only
   // while joining; mutex_ must not be held there.
