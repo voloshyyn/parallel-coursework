@@ -2,3 +2,5 @@ data/
 build/
 models/
 *.ollama/
+.playwright-cli/
+output/playwright/

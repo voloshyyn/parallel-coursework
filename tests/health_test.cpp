@@ -1,24 +1,34 @@
 #include <gtest/gtest.h>
 
 #include <httplib.h>
+#include <nlohmann/json.hpp>
 
 #include <atomic>
 #include <chrono>
+#include <filesystem>
 #include <string>
 #include <thread>
 
 #include "api.h"
 #include "integrations/ollama_monitor.h"
+#include "services/index_service.h"
+#include "test_support.h"
 
 namespace {
 
 using namespace std::chrono_literals;
 
+using search::IndexService;
+using search::test_support::BuildGate;
+using search::test_support::TempDir;
+
 // Runs the real health route on a fixed port for the lifetime of the object.
 class HealthServer {
  public:
-  HealthServer(search::OllamaMonitor& monitor, int port) : port_(port) {
-    search::RegisterHealthRoute(app_, monitor);
+  HealthServer(search::OllamaMonitor& monitor, int port,
+               const IndexService* index_service = nullptr)
+      : port_(port) {
+    search::RegisterHealthRoute(app_, monitor, index_service);
     app_.loglevel(crow::LogLevel::Critical);
     app_.bindaddr("127.0.0.1").port(port_).multithreaded();
     worker_ = std::thread([this] { app_.run(); });
@@ -112,6 +122,61 @@ TEST(HealthEndpoint, Returns200AndCachedAvailability) {
   ASSERT_TRUE(result) << "health endpoint did not answer";
   EXPECT_EQ(200, result->status);
   EXPECT_NE(std::string::npos, result->body.find("\"ollama\":true"));
+  EXPECT_EQ(2U, nlohmann::json::parse(result->body).size());
+}
+
+// Our extension for automatic startup indexing: HTTP answers 200 immediately,
+// but the client can see whether search is usable yet.
+TEST(HealthEndpoint, ReportsIndexStateAndReadiness) {
+  search::OllamaMonitor monitor([] { return false; }, 5s);
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  IndexService service(dir.path().string());
+  HealthServer server(monitor, 18083, &service);
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+
+  const auto empty = client.Get("/api/ready");
+  ASSERT_TRUE(empty);
+  EXPECT_EQ(200, empty->status);
+  EXPECT_NE(std::string::npos, empty->body.find("\"index_state\":\"empty\""));
+  EXPECT_NE(std::string::npos, empty->body.find("\"search_ready\":false"));
+
+  ASSERT_TRUE(service.Build(1).has_value());
+  const auto ready = client.Get("/api/ready");
+  ASSERT_TRUE(ready);
+  EXPECT_EQ(200, ready->status);
+  EXPECT_NE(std::string::npos, ready->body.find("\"index_state\":\"ready\""));
+  EXPECT_NE(std::string::npos, ready->body.find("\"search_ready\":true"));
+  EXPECT_NE(std::string::npos, ready->body.find("\"index_error\":\"\""));
+}
+
+TEST(HealthEndpoint, ReportsABuildingIndex) {
+  search::OllamaMonitor monitor([] { return false; }, 5s);
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  BuildGate gate("whale");
+  gate.Hold("whale");
+  IndexService service(dir.path().string(),
+                       [&gate](const std::filesystem::path& path) {
+                         return gate.Read(path);
+                       });
+  HealthServer server(monitor, 18084, &service);
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+
+  std::thread builder([&service] { service.Build(1); });
+  gate.WaitUntilReading();
+
+  const auto building = client.Get("/api/ready");
+  gate.Release();
+  builder.join();
+
+  ASSERT_TRUE(building);
+  EXPECT_EQ(200, building->status);
+  EXPECT_NE(std::string::npos,
+            building->body.find("\"index_state\":\"building\""));
+  EXPECT_NE(std::string::npos, building->body.find("\"search_ready\":false"));
 }
 
 TEST(OllamaMonitor, PublishesProbeResult) {

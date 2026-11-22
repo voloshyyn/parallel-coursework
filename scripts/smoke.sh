@@ -4,12 +4,12 @@
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
-TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-120}"
+TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-600}"
 BUILD_TIMEOUT_SECONDS="${BUILD_TIMEOUT_SECONDS:-900}"
 
 deadline=$((SECONDS + TIMEOUT_SECONDS))
 while :; do
-  if body="$(curl -fsS "${BASE_URL}/api/health" 2>/dev/null)"; then
+  if body="$(curl -fsS --max-time 3 "${BASE_URL}/api/health" 2>/dev/null)"; then
     break
   fi
   if (( SECONDS >= deadline )); then
@@ -29,7 +29,22 @@ if ! grep -Eq '"ollama"[[:space:]]*:[[:space:]]*(true|false)' <<<"${body}"; then
   exit 1
 fi
 
-echo "building index (this reads the whole dataset)..."
+echo "waiting for automatic indexing..."
+while :; do
+  ready="$(curl -fsS --max-time 3 "${BASE_URL}/api/ready" 2>/dev/null || true)"
+  if grep -Eq '"search_ready"[[:space:]]*:[[:space:]]*true' <<<"${ready}"; then
+    break
+  fi
+  if (( SECONDS >= deadline )); then
+    echo "ERROR: search did not become ready: ${ready}" >&2
+    exit 1
+  fi
+  sleep 2
+done
+
+# Explicit rebuild is optional: ordinary startup must not require this call.
+if [[ "${REBUILD_INDEX:-false}" = "true" ]]; then
+echo "rebuilding index..."
 index_body="$(curl -fsS --max-time "${BUILD_TIMEOUT_SECONDS}" \
   -X POST "${BASE_URL}/api/index" \
   -H 'Content-Type: application/json' -d '{"threads": 2}')"
@@ -42,8 +57,9 @@ if ! grep -Eq '"documents_indexed"[[:space:]]*:[[:space:]]*[0-9]+' <<<"${index_b
   echo 'ERROR: index response has no integer "documents_indexed"' >&2
   exit 1
 fi
+fi
 
-stats_body="$(curl -fsS "${BASE_URL}/api/stats")"
+stats_body="$(curl -fsS --max-time 10 "${BASE_URL}/api/stats")"
 echo "stats: ${stats_body}"
 documents="$(sed -n 's/.*"documents"[[:space:]]*:[[:space:]]*\([0-9]\+\).*/\1/p' <<<"${stats_body}")"
 if [[ -z "${documents}" || "${documents}" -le 0 ]]; then
@@ -51,7 +67,7 @@ if [[ -z "${documents}" || "${documents}" -le 0 ]]; then
   exit 1
 fi
 
-search_body="$(curl -fsS -X POST "${BASE_URL}/api/search" \
+search_body="$(curl -fsS --max-time 30 -X POST "${BASE_URL}/api/search" \
   -H 'Content-Type: application/json' \
   -d '{"query": "whale", "mode": "keyword"}')"
 if ! grep -Eq '"results"[[:space:]]*:[[:space:]]*\[' <<<"${search_body}"; then

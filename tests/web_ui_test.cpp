@@ -75,11 +75,17 @@ TEST(WebUi, ServesThePageThatLoadsTheApi) {
             page->get_header_value("Content-Type").find("text/html"));
   EXPECT_EQ("no-cache", page->get_header_value("Cache-Control"));
 
-  // Vue mounts here, and both local assets are referenced.
+  // Vue mounts here, and every asset comes from the same binary.
   EXPECT_NE(std::string::npos, page->body.find("id=\"app\""));
-  EXPECT_NE(std::string::npos, page->body.find("vue@3"));
+  EXPECT_NE(std::string::npos, page->body.find("v-cloak"));
+  EXPECT_NE(std::string::npos, page->body.find("/vue.global.prod.js"));
+  EXPECT_NE(std::string::npos, page->body.find("/search_client.js"));
   EXPECT_NE(std::string::npos, page->body.find("/app.js"));
   EXPECT_NE(std::string::npos, page->body.find("/style.css"));
+  // Regression: a CDN script made an offline demo render a blank page.
+  EXPECT_EQ(std::string::npos, page->body.find("https://"));
+  EXPECT_EQ(std::string::npos, page->body.find("unpkg"));
+  EXPECT_EQ(std::string::npos, page->body.find("cdn"));
   // The snippet and the terms are rendered with escaping interpolation.
   EXPECT_EQ(std::string::npos, page->body.find("v-html"));
 }
@@ -89,17 +95,48 @@ TEST(WebUi, ServesTheSearchClient) {
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
-  const auto script = client.Get("/app.js");
+  const auto script = client.Get("/search_client.js");
   ASSERT_TRUE(script);
   EXPECT_EQ(200, script->status);
   EXPECT_NE(std::string::npos,
             script->get_header_value("Content-Type").find("javascript"));
-  // The client speaks the documented protocol and never injects HTML.
+  // The state machine speaks the documented protocol and never injects HTML.
   EXPECT_NE(std::string::npos, script->body.find("/ws/search"));
-  EXPECT_NE(std::string::npos, script->body.find("new WebSocket"));
+  EXPECT_NE(std::string::npos, script->body.find("WebSocket"));
   EXPECT_NE(std::string::npos, script->body.find("expanded_terms"));
-  EXPECT_NE(std::string::npos, script->body.find("/api/health"));
+  EXPECT_NE(std::string::npos, script->body.find("/api/ready"));
+  EXPECT_NE(std::string::npos, script->body.find("validateMessage"));
   EXPECT_EQ(std::string::npos, script->body.find("innerHTML"));
+}
+
+TEST(WebUi, ServesTheAppWrapperWithoutAnExternalNetwork) {
+  UiServer server(18134);
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+
+  const auto script = client.Get("/app.js");
+  ASSERT_TRUE(script);
+  EXPECT_EQ(200, script->status);
+  EXPECT_NE(std::string::npos, script->body.find("createSearchClient"));
+  // The no-Vue fallback must be visible: it removes v-cloak instead of writing
+  // into a hidden element.
+  EXPECT_NE(std::string::npos, script->body.find("removeAttribute('v-cloak')"));
+  EXPECT_EQ(std::string::npos, script->body.find("innerHTML"));
+  EXPECT_EQ(std::string::npos, script->body.find("https://"));
+}
+
+TEST(WebUi, ServesPinnedVueFromTheBinary) {
+  UiServer server(18135);
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+
+  const auto vue = client.Get("/vue.global.prod.js");
+  ASSERT_TRUE(vue);
+  EXPECT_EQ(200, vue->status);
+  EXPECT_NE(std::string::npos,
+            vue->get_header_value("Content-Type").find("javascript"));
+  EXPECT_GT(vue->body.size(), 100000U);
+  EXPECT_NE(std::string::npos, vue->body.find("Vue"));
 }
 
 TEST(WebUi, ServesTheStyles) {

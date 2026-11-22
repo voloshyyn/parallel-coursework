@@ -124,6 +124,20 @@ h2 {
   color: #8f2020;
 }
 
+/* Readiness banner shown while the index is built at startup. */
+.notice {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: #eef2ff;
+  color: #2f3f8f;
+  border: 1px solid #d4ddff;
+}
+
+.health.is-unknown .health-dot {
+  background: var(--warn);
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);

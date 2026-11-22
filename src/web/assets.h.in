@@ -10,6 +10,10 @@ namespace search::web {
 // the closing sequence.
 inline constexpr std::string_view kIndexHtml = R"web-html(@INDEX_HTML@)web-html";
 inline constexpr std::string_view kAppJs = R"web-js(@APP_JS@)web-js";
+inline constexpr std::string_view kSearchClientJs =
+    R"web-client(@SEARCH_CLIENT_JS@)web-client";
 inline constexpr std::string_view kStyleCss = R"web-css(@STYLE_CSS@)web-css";
+// Pinned Vue 3.5.13, served from the binary: the UI works without a CDN.
+inline constexpr std::string_view kVueJs = R"web-vue(@VUE_JS@)web-vue";
 
 }  // namespace search::web

@@ -7,11 +7,14 @@
 namespace search {
 
 SearchPipeline::SearchPipeline(const SearchEngine& engine,
-                               QueryExpander expander)
-    : engine_(engine), expander_(std::move(expander)) {}
+                               QueryExpander expander, SearchRunner runner)
+    : engine_(engine),
+      expander_(std::move(expander)),
+      runner_(std::move(runner)) {}
 
 SearchOutcome SearchPipeline::Run(const InvertedIndex& index,
-                                  std::string_view query) const {
+                                  std::string_view query,
+                                  const PipelineObserver& observer) const {
   SearchOutcome outcome;
   outcome.original_query = std::string(query);
   if (query.empty()) {
@@ -27,6 +30,11 @@ SearchOutcome SearchPipeline::Run(const InvertedIndex& index,
     }
   }
 
+  // The client learns the terms now, while the keyword search is still ahead.
+  if (observer.on_expansion) {
+    observer.on_expansion(outcome.original_query, outcome.expanded_terms);
+  }
+
   // The search engine tokenizes the string, so joining original and expanded
   // terms searches for their union.
   std::string effective_query = outcome.original_query;
@@ -39,11 +47,16 @@ SearchOutcome SearchPipeline::Run(const InvertedIndex& index,
   }
 
   const auto started = std::chrono::steady_clock::now();
-  outcome.results = engine_.Search(index, effective_query);
+  outcome.results =
+      runner_ ? runner_(index, effective_query) : engine_.Search(index, effective_query);
   outcome.search_time_ms =
       std::chrono::duration_cast<std::chrono::milliseconds>(
           std::chrono::steady_clock::now() - started)
           .count();
+
+  if (observer.on_results) {
+    observer.on_results(outcome);
+  }
   return outcome;
 }
 

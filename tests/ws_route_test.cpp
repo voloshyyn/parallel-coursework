@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <semaphore>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -16,12 +17,15 @@
 #include <vector>
 
 #include <crow.h>
+#include <httplib.h>
 #include <nlohmann/json.hpp>
 
 #include "api.h"
 #include "core/search_engine.h"
+#include "integrations/ollama_monitor.h"
 #include "services/index_service.h"
 #include "services/search_pipeline.h"
+#include "services/search_socket.h"
 #include "test_support.h"
 
 // The client below speaks just enough of RFC 6455 to check the real route: a
@@ -229,9 +233,9 @@ class WebSocketClient {
 class WebSocketServer {
  public:
   WebSocketServer(IndexService& service, const SearchPipeline& pipeline,
-                  int port)
-      : port_(port) {
-    search::RegisterSearchSocketRoute(app_, service, pipeline);
+                  int port, search::SearchSocketOptions options = {})
+      : port_(port), socket_service_(service, pipeline, options) {
+    search::RegisterSearchSocketRoute(app_, socket_service_);
     app_.loglevel(crow::LogLevel::Critical);
     app_.bindaddr("127.0.0.1").port(port_).multithreaded();
     worker_ = std::thread([this] { app_.run(); });
@@ -242,6 +246,7 @@ class WebSocketServer {
     if (worker_.joinable()) {
       worker_.join();
     }
+    socket_service_.Shutdown();
   }
 
   WebSocketServer(const WebSocketServer&) = delete;
@@ -251,6 +256,43 @@ class WebSocketServer {
 
  private:
   const int port_;
+  search::SearchSocketService socket_service_;
+  crow::SimpleApp app_;
+  std::thread worker_;
+};
+
+// The smallest I/O pool Crow allows (two threads) plus the health route: the
+// WebSocket pipeline must not run on it, otherwise waiting Ollama calls starve
+// every other request.
+class CombinedServer {
+ public:
+  CombinedServer(IndexService& service, const SearchPipeline& pipeline,
+                 const search::OllamaMonitor& monitor, int port,
+                 search::SearchSocketOptions options = {})
+      : port_(port), socket_service_(service, pipeline, options) {
+    search::RegisterHealthRoute(app_, monitor, &service);
+    search::RegisterSearchSocketRoute(app_, socket_service_);
+    app_.loglevel(crow::LogLevel::Critical);
+    app_.bindaddr("127.0.0.1").port(port_).multithreaded().concurrency(2);
+    worker_ = std::thread([this] { app_.run(); });
+  }
+
+  ~CombinedServer() {
+    app_.stop();
+    if (worker_.joinable()) {
+      worker_.join();
+    }
+    socket_service_.Shutdown();
+  }
+
+  CombinedServer(const CombinedServer&) = delete;
+  CombinedServer& operator=(const CombinedServer&) = delete;
+
+  int port() const { return port_; }
+
+ private:
+  const int port_;
+  search::SearchSocketService socket_service_;
   crow::SimpleApp app_;
   std::thread worker_;
 };
@@ -323,4 +365,131 @@ TEST(SearchSocketRoute, KeepsTheConnectionOpenAfterAnError) {
   const std::optional<nlohmann::json> done = client.ReadJson();
   ASSERT_TRUE(done.has_value());
   EXPECT_EQ("done", done->at("stage"));
+}
+
+TEST(SearchSocketRoute, ExpansionReachesClientBeforeSearchFinishes) {
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  IndexService service(dir.path().string());
+  ASSERT_TRUE(service.Build(1));
+  const SearchEngine engine(dir.path().string());
+  std::counting_semaphore<64> entered{0}, release{0};
+  const SearchPipeline pipeline(engine, {}, [&](const auto& index, auto query) {
+    entered.release();
+    release.acquire();
+    return engine.Search(index, query);
+  });
+  WebSocketServer server(service, pipeline, 18123);
+  WebSocketClient client;
+  ASSERT_TRUE(client.ConnectWithRetry(server.port(), 5s));
+  ASSERT_TRUE(client.SendText(R"({"query":"alpha"})"));
+  EXPECT_TRUE(entered.try_acquire_for(5s));
+  const auto expansion = client.ReadJson();
+  release.release();
+  ASSERT_TRUE(expansion);
+  EXPECT_EQ("query_expansion", expansion->at("stage"));
+  const auto results = client.ReadJson();
+  ASSERT_TRUE(results);
+  EXPECT_EQ("keyword_search", results->at("stage"));
+  const auto done = client.ReadJson();
+  ASSERT_TRUE(done);
+  EXPECT_EQ("done", done->at("stage"));
+}
+
+TEST(SearchSocketRoute, ClientCanDisconnectDuringBackgroundWork) {
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  IndexService service(dir.path().string());
+  ASSERT_TRUE(service.Build(1));
+  const SearchEngine engine(dir.path().string());
+  std::counting_semaphore<64> entered{0}, release{0}, finished{0};
+  const SearchPipeline pipeline(engine, {}, [&](const auto& index, auto query) {
+    entered.release();
+    release.acquire();
+    auto results = engine.Search(index, query);
+    finished.release();
+    return results;
+  });
+  WebSocketServer server(service, pipeline, 18124);
+  for (int i = 0; i < 20; ++i) {
+    {
+      WebSocketClient client;
+      ASSERT_TRUE(client.ConnectWithRetry(server.port(), 5s));
+      ASSERT_TRUE(client.SendText(R"({"query":"alpha"})"));
+      EXPECT_TRUE(entered.try_acquire_for(5s));
+      const auto expansion = client.ReadJson();
+      EXPECT_TRUE(expansion);
+    }  // Close TCP while search is still running; no client object survives.
+    release.release();
+    EXPECT_TRUE(finished.try_acquire_for(5s));
+  }
+}
+
+// Regression: onmessage used to call the whole pipeline on Crow's I/O thread.
+// One slow Ollama call then occupied an I/O worker, and two concurrent searches
+// occupied both of them, so /api/health could not answer at all. Now the
+// pipeline runs on the project's bounded pool and the I/O threads stay free.
+TEST(SearchSocketRoute, SlowExpansionDoesNotStarveHealth) {
+  TempDir dir;
+  dir.Write("a.txt", "fish");
+  IndexService service(dir.path().string());
+  ASSERT_TRUE(service.Build(1).has_value());
+  const SearchEngine engine(dir.path().string());
+
+  std::counting_semaphore<64> expansion_started{0};
+  std::counting_semaphore<64> release_expansion{0};
+  const SearchPipeline pipeline(engine, [&](std::string_view) {
+    expansion_started.release();
+    release_expansion.acquire();
+    return std::vector<std::string>{"whale"};
+  });
+  search::OllamaMonitor monitor([] { return false; }, 5s);
+  search::SearchSocketOptions options;
+  options.workers = 1;
+  CombinedServer server(service, pipeline, monitor, 18122, options);
+
+  WebSocketClient first;
+  WebSocketClient second;
+  ASSERT_TRUE(first.ConnectWithRetry(server.port(), 5s));
+  ASSERT_TRUE(second.ConnectWithRetry(server.port(), 5s));
+  ASSERT_TRUE(first.SendText(R"({"query": "fish"})"));
+  expansion_started.acquire();
+  ASSERT_TRUE(second.SendText(R"({"query": "fish"})"));
+  // Post-fix the second query waits in our pool queue. Pre-fix the second
+  // onmessage blocked the other I/O thread, so give it time to get there.
+  std::this_thread::sleep_for(100ms);
+
+  httplib::Client http("127.0.0.1", server.port());
+  http.set_connection_timeout(1s);
+  http.set_read_timeout(2s);
+  const auto started = std::chrono::steady_clock::now();
+  const auto health = http.Get("/api/health");
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+
+  // Release before asserting: a failing expectation must not leave the pool
+  // blocked and turn into a hang during shutdown. The second permit is used by
+  // the queued search once the first one finishes.
+  release_expansion.release();
+  release_expansion.release();
+
+  ASSERT_TRUE(health);
+  EXPECT_EQ(200, health->status);
+  EXPECT_LT(elapsed, 1s);
+  const nlohmann::json body =
+      nlohmann::json::parse(health->body, nullptr, false);
+  ASSERT_FALSE(body.is_discarded());
+  EXPECT_EQ("ok", body.at("status"));
+  EXPECT_EQ(2U, body.size());
+
+  for (WebSocketClient* client : {&first, &second}) {
+    const std::optional<nlohmann::json> expansion = client->ReadJson();
+    ASSERT_TRUE(expansion.has_value());
+    EXPECT_EQ("query_expansion", expansion->at("stage"));
+    const std::optional<nlohmann::json> search = client->ReadJson();
+    ASSERT_TRUE(search.has_value());
+    EXPECT_EQ("keyword_search", search->at("stage"));
+    const std::optional<nlohmann::json> done = client->ReadJson();
+    ASSERT_TRUE(done.has_value());
+    EXPECT_EQ("done", done->at("stage"));
+  }
 }

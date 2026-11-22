@@ -1,0 +1,17 @@
+# Optional override for an existing corpus (for example the Gutenberg split).
+#
+# The base compose file generates a synthetic corpus into a named volume. To
+# search a corpus you already have, export its host directory and run:
+#
+#   EXTERNAL_DATASET_PATH=/absolute/path/to/docs \
+#     docker compose -f docker-compose.yml -f docker-compose.external.yml up
+#
+# The directory is mounted read-only and generation is disabled, so the files
+# are never modified or replaced.
+services:
+  server:
+    environment:
+      DATA_DIR: /data/external
+      GENERATE_DATASET: "false"
+    volumes:
+      - ${EXTERNAL_DATASET_PATH:?set EXTERNAL_DATASET_PATH to a directory with .txt files}:/data/external:ro

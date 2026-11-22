@@ -101,15 +101,25 @@ std::optional<BuildStats> IndexService::Build(std::size_t threads) {
       published_.stats = stats;
       building_ = false;
       state_ = IndexState::kReady;
+      last_error_.clear();
     }
     return stats;
-  } catch (...) {
+  } catch (const std::exception& error) {
     {
       std::lock_guard<std::mutex> lock(state_mutex_);
       building_ = false;
       // A failed first build leaves nothing to serve; a failed rebuild must not
       // take the previously published generation offline.
       state_ = published_.index ? IndexState::kReady : IndexState::kEmpty;
+      last_error_ = error.what();
+    }
+    throw;
+  } catch (...) {
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      building_ = false;
+      state_ = published_.index ? IndexState::kReady : IndexState::kEmpty;
+      last_error_ = "unknown error";
     }
     throw;
   }
@@ -125,11 +135,16 @@ PublishedIndex IndexService::Snapshot() const {
   return published_;
 }
 
+std::string IndexService::LastError() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return last_error_;
+}
+
 std::vector<std::filesystem::path> IndexService::ListDocuments() const {
   std::vector<std::filesystem::path> documents;
   for (const std::filesystem::directory_entry& entry :
        std::filesystem::directory_iterator(data_dir_)) {
-    if (entry.is_regular_file()) {
+    if (entry.is_regular_file() && entry.path().extension() == ".txt") {
       documents.push_back(entry.path());
     }
   }

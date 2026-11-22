@@ -37,3 +37,28 @@ add_search_test(tokenizer_test)
 add_search_test(web_ui_test)
 add_search_test(ws_route_test)
 add_search_test(ws_search_test)
+
+# Behavioural JavaScript tests for the UI state machine. They use only Node's
+# built-in test runner, so no npm install is needed.
+find_program(NODE_EXECUTABLE NAMES node nodejs)
+if(NODE_EXECUTABLE)
+  add_test(
+    NAME ui_search_client
+    COMMAND ${NODE_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/ui/search_client.test.js)
+  set_tests_properties(ui_search_client PROPERTIES TIMEOUT 120)
+else()
+  message(STATUS "Node.js not found: skipping JavaScript UI tests")
+endif()
+
+# The dataset generator uses only the Python standard library.
+find_program(PYTHON3_EXECUTABLE NAMES python3 python)
+if(PYTHON3_EXECUTABLE)
+  add_test(
+    NAME dataset_generator
+    COMMAND ${PYTHON3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_generate_dataset.py)
+  set_tests_properties(dataset_generator PROPERTIES TIMEOUT 300)
+else()
+  message(STATUS "Python 3 not found: skipping dataset generator tests")
+endif()

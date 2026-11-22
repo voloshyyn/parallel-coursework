@@ -1,0 +1,6 @@
+.git
+data
+build
+bench/results
+models
+docs

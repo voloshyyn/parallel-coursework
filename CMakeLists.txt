@@ -57,10 +57,14 @@ set(WEB_ASSET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/web)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   ${WEB_ASSET_DIR}/index.html
   ${WEB_ASSET_DIR}/app.js
-  ${WEB_ASSET_DIR}/style.css)
+  ${WEB_ASSET_DIR}/search_client.js
+  ${WEB_ASSET_DIR}/style.css
+  ${WEB_ASSET_DIR}/vue.global.prod.js)
 file(READ ${WEB_ASSET_DIR}/index.html INDEX_HTML)
 file(READ ${WEB_ASSET_DIR}/app.js APP_JS)
+file(READ ${WEB_ASSET_DIR}/search_client.js SEARCH_CLIENT_JS)
 file(READ ${WEB_ASSET_DIR}/style.css STYLE_CSS)
+file(READ ${WEB_ASSET_DIR}/vue.global.prod.js VUE_JS)
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/web/assets.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/web_assets.h
@@ -77,6 +81,7 @@ add_library(search_core STATIC
   src/integrations/ollama_monitor.cpp
   src/services/index_service.cpp
   src/services/search_pipeline.cpp
+  src/services/search_socket.cpp
   src/web_ui.cpp)
 target_include_directories(search_core PUBLIC src)
 target_include_directories(search_core PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

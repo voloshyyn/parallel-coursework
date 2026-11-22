@@ -7,26 +7,42 @@ services:
       - "8080:8080"
     environment:
       PORT: "8080"
-      DATA_DIR: /data/docs
+      # The entrypoint generates the corpus here on first start and reuses it
+      # afterwards via manifest.json.
+      DATA_DIR: /data/generated/${DATASET_PROFILE:-full}
+      DATASET_PROFILE: ${DATASET_PROFILE:-full}
+      # Ollama is optional (profile `llm`). Without it expansion falls back to
+      # the original query and /api/health reports "ollama": false.
       OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: qwen2.5:1.5b
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+      AUTO_INDEX: "true"
+      INDEX_THREADS: ${INDEX_THREADS:-4}
+      SEARCH_WORKERS: ${SEARCH_WORKERS:-4}
+      SEARCH_TASK_QUEUE: ${SEARCH_TASK_QUEUE:-64}
+      SEARCH_CONNECTION_QUEUE: ${SEARCH_CONNECTION_QUEUE:-4}
     volumes:
-      - ./data/docs:/data/docs:ro
-    depends_on:
-      - ollama
+      - generated_data:/data/generated
     healthcheck:
+      # The server answers 200 before the index is ready; poll until it is up.
+      # start_period covers the first corpus generation, which can take minutes
+      # for the full profile.
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
       interval: 10s
       timeout: 3s
-      retries: 5
-      start_period: 10s
+      retries: 30
+      start_period: 600s
 
+  # Optional local LLM for query expansion:
+  #   docker compose --profile llm up
+  # Model download happens separately, see docs/deployment.md.
   ollama:
     image: ollama/ollama:0.40.10
+    profiles: ["llm"]
     ports:
       - "11434:11434"
     volumes:
       - ollama_models:/root/.ollama
 
 volumes:
+  generated_data:
   ollama_models:

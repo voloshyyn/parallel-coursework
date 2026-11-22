@@ -4,9 +4,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
+#include <semaphore>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include "core/inverted_index.h"
@@ -16,9 +19,11 @@
 namespace {
 
 using search::InvertedIndex;
+using search::PipelineObserver;
 using search::SearchEngine;
 using search::SearchOutcome;
 using search::SearchPipeline;
+using search::SearchRunner;
 using search::test_support::TempDir;
 
 void AddDocuments(InvertedIndex& index, const TempDir& dir,
@@ -126,4 +131,53 @@ TEST(SearchPipeline, DoesNotExpandAnEmptyQuery) {
   EXPECT_EQ(0, calls);
   EXPECT_TRUE(outcome.results.empty());
   EXPECT_EQ(0, outcome.search_time_ms);
+}
+
+// Regression: the WebSocket route used to call Run() to completion and only
+// then send query_expansion. The observer must fire before the search runs, so
+// the client sees the terms while the keyword stage is still working.
+TEST(SearchPipeline, ReportsExpansionBeforeTheKeywordSearchFinishes) {
+  TempDir dir;
+  dir.Write("a.txt", "fish");
+  dir.Write("b.txt", "whale");
+  InvertedIndex index;
+  AddDocuments(index, dir, {"a.txt", "b.txt"}, {"fish", "whale"});
+  const SearchEngine engine(dir.path().string());
+
+  std::binary_semaphore search_started{0};
+  std::binary_semaphore release_search{0};
+  SearchRunner runner = [&](const InvertedIndex& target, std::string_view query) {
+    search_started.release();
+    release_search.acquire();
+    return engine.Search(target, query);
+  };
+  const SearchPipeline pipeline(
+      engine, [](std::string_view) { return std::vector<std::string>{"whale"}; },
+      runner);
+
+  std::vector<std::string> events;
+  PipelineObserver observer;
+  observer.on_expansion = [&events](std::string_view,
+                                    const std::vector<std::string>&) {
+    events.push_back("expansion");
+  };
+  observer.on_results = [&events](const SearchOutcome&) {
+    events.push_back("results");
+  };
+
+  SearchOutcome outcome;
+  std::thread worker(
+      [&] { outcome = pipeline.Run(index, "fish", observer); });
+
+  search_started.acquire();
+  // The search is paused inside the runner; expansion must already be visible.
+  ASSERT_EQ(1U, events.size());
+  EXPECT_EQ("expansion", events[0]);
+
+  release_search.release();
+  worker.join();
+
+  ASSERT_EQ(2U, events.size());
+  EXPECT_EQ("results", events[1]);
+  EXPECT_EQ("fish", outcome.original_query);
 }

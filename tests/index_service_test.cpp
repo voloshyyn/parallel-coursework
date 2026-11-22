@@ -23,6 +23,18 @@ using search::test_support::TempDir;
 
 }  // namespace
 
+TEST(IndexService, IgnoresTheDatasetManifestAndOtherNonTextFiles) {
+  TempDir dir;
+  dir.Write("a.txt", "alpha");
+  dir.Write("manifest.json", "manifestterm");
+  dir.Write("unfinished.tmp", "incompleteterm");
+  IndexService service(dir.path().string());
+  const auto stats = service.Build(2);
+  ASSERT_TRUE(stats);
+  EXPECT_EQ(1U, stats->documents_indexed);
+  EXPECT_TRUE(service.Snapshot().index->Lookup("manifestterm").empty());
+}
+
 TEST(IndexService, StartsEmpty) {
   TempDir dir;
   const IndexService service(dir.path().string());

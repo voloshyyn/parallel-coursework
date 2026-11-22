@@ -58,6 +58,10 @@ class IndexService {
   // successful build; a failed rebuild keeps the previous generation.
   PublishedIndex Snapshot() const;
 
+  // Message of the last failed build, empty after a successful one. Lets
+  // /api/ready explain why automatic indexing did not finish.
+  std::string LastError() const;
+
  private:
   std::vector<std::filesystem::path> ListDocuments() const;
 
@@ -70,6 +74,7 @@ class IndexService {
   mutable std::mutex state_mutex_;
   IndexState state_ = IndexState::kEmpty;
   bool building_ = false;
+  std::string last_error_;
   PublishedIndex published_;
 };
 

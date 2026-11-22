@@ -19,21 +19,46 @@ COPY web ./web
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TSAN=OFF -DBUILD_TESTING=OFF \
     && cmake --build build --parallel "$(nproc)"
 
+# Reproducible verification: docker build --target test -t coursework-tests .
+FROM build AS test
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 nodejs \
+    && rm -rf /var/lib/apt/lists/*
+COPY tests ./tests
+COPY tools ./tools
+RUN cmake -S . -B build -DBUILD_TESTING=ON \
+    && cmake --build build --parallel 4
+CMD ["ctest", "--test-dir", "build", "--output-on-failure"]
+
 FROM ubuntu:24.04 AS runtime
 
+# python3 runs the stdlib-only corpus generator; curl is used by the healthcheck.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends ca-certificates curl python3 \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --create-home app
+    && useradd --system --uid 10001 --create-home app \
+    && mkdir -p /data/generated \
+    && chown app:app /data/generated
 
 WORKDIR /app
 COPY --from=build /src/build/search_server /app/search_server
+COPY tools/generate_dataset.py /app/tools/generate_dataset.py
+COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY web/vue.LICENSE.txt /app/licenses/vue.LICENSE.txt
+RUN chmod 0755 /app/docker-entrypoint.sh
+
+# The generated corpus lives on a volume so the first (slow) run is paid once.
+# Declaring it also gives a plain `docker run` persistent storage.
+VOLUME ["/data/generated"]
 
 ENV PORT=8080 \
-    DATA_DIR=/data/docs \
+    DATASET_PROFILE=full \
+    GENERATE_DATASET=true \
+    AUTO_INDEX=true \
     OLLAMA_URL=http://ollama:11434 \
-    OLLAMA_MODEL=qwen2.5:1.5b
+    OLLAMA_MODEL=qwen2.5:1.5b \
+    PYTHONUNBUFFERED=1
 
 EXPOSE 8080
 USER app
-ENTRYPOINT ["/app/search_server"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

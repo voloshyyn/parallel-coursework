@@ -1,195 +1,171 @@
 'use strict';
 
-// The page is a thin client for the API: /api/health for the indicator and
-// /ws/search for the search itself. Vue comes from a CDN, so every user value
-// is rendered with text interpolation, which escapes HTML.
+// Thin Vue wrapper around search_client.js. The client owns the state machine
+// (sockets, generation ids, watchdog, protocol validation); this file only
+// renders plain strings. Vue is served from the binary, so no CDN is involved.
 
 (function () {
-  const STAGES = [
-    { id: 'query_expansion', label: 'Розширення запиту (Ollama)' },
-    { id: 'keyword_search', label: 'Пошук за ключовими словами' },
-    { id: 'done', label: 'Готово' },
-  ];
+  const root = document.getElementById('app');
+  const showFatal = function (message) {
+    if (!root) {
+      return;
+    }
+    root.removeAttribute('v-cloak');
+    root.textContent = message;
+  };
 
-  const HEALTH_INTERVAL_MS = 5000;
+  if (typeof Vue === 'undefined') {
+    showFatal(
+      'Не вдалося завантажити локальний Vue. Перевірте, що /vue.global.prod.js віддається сервером.',
+    );
+    return;
+  }
+  if (!window.SearchClient) {
+    showFatal(
+      'Не вдалося завантажити клієнт пошуку. Перевірте, що /search_client.js віддається сервером.',
+    );
+    return;
+  }
+
+  const STAGES = window.SearchClient.STAGES;
   const STATE_LABELS = {
     pending: 'очікування',
     running: 'виконується',
     done: 'готово',
     error: 'помилка',
   };
+  const INDEX_LABELS = {
+    empty: 'не побудований',
+    building: 'будується…',
+    ready: 'готовий',
+    error: 'помилка',
+    unknown: '—',
+  };
 
-  const root = document.getElementById('app');
-  if (typeof Vue === 'undefined') {
-    root.textContent =
-      'Не вдалося завантажити Vue з CDN. Перевірте доступ до інтернету.';
-    return;
-  }
+  const freshStages = function () {
+    return STAGES.map(function (stage) {
+      return { id: stage.id, label: stage.label, state: 'pending' };
+    });
+  };
 
-  const freshStages = () =>
-    STAGES.map((stage) => ({ id: stage.id, label: stage.label, state: 'pending' }));
+  const initialUi = function () {
+    return {
+      query: '',
+      status: 'idle',
+      stages: freshStages(),
+      expansion: null,
+      results: [],
+      searchTimeMs: null,
+      error: '',
+      healthChecked: false,
+      serverAvailable: false,
+      ollamaAvailable: false,
+      indexState: 'unknown',
+      indexError: '',
+      searchReady: false,
+    };
+  };
+
+  const requestTimeoutMs = (function () {
+    const fromAttribute = Number(root && root.dataset.requestTimeoutMs);
+    if (Number.isFinite(fromAttribute) && fromAttribute >= 1000) {
+      return fromAttribute;
+    }
+    const fromWindow = Number(window.SEARCH_REQUEST_TIMEOUT_MS);
+    if (Number.isFinite(fromWindow) && fromWindow >= 1000) {
+      return fromWindow;
+    }
+    return 60000;
+  })();
 
   Vue.createApp({
     data() {
       return {
-        query: '',
-        searching: false,
-        stages: freshStages(),
-        expansion: null,
-        results: [],
-        searchTimeMs: null,
-        finished: false,
-        error: '',
-        healthChecked: false,
-        serverAvailable: false,
-        ollamaAvailable: false,
-        socket: null,
-        healthTimer: null,
-        // A socket we close after done must not be reported as a failure.
-        closingOnPurpose: false,
+        ui: initialUi(),
+        client: null,
       };
     },
     computed: {
       healthText() {
-        if (!this.healthChecked) return 'перевіряю…';
-        return this.serverAvailable ? 'доступний' : 'недоступний';
+        if (!this.ui.healthChecked) return 'перевіряю…';
+        return this.ui.serverAvailable ? 'доступний' : 'недоступний';
       },
       ollamaText() {
-        if (!this.healthChecked || !this.serverAvailable) return '—';
-        return this.ollamaAvailable ? 'доступна' : 'недоступна';
+        if (!this.ui.healthChecked || !this.ui.serverAvailable) return '—';
+        return this.ui.ollamaAvailable ? 'доступна' : 'недоступна';
+      },
+      indexText() {
+        if (!this.ui.healthChecked || !this.ui.serverAvailable) return '—';
+        if (this.ui.indexState === 'empty' && this.ui.indexError) {
+          return 'помилка';
+        }
+        return INDEX_LABELS[this.ui.indexState] || this.ui.indexState;
       },
       healthClass() {
-        if (!this.healthChecked) return 'is-unknown';
-        return this.serverAvailable ? 'is-ok' : 'is-down';
+        if (!this.ui.healthChecked) return 'is-unknown';
+        return this.ui.serverAvailable ? 'is-ok' : 'is-down';
+      },
+      preparing() {
+        return (
+          this.ui.serverAvailable &&
+          !this.ui.searchReady &&
+          this.ui.indexState !== 'ready'
+        );
+      },
+      preparingText() {
+        if (this.ui.indexState === 'building') {
+          return 'Індекс будується. Пошук стане доступним автоматично.';
+        }
+        if (this.ui.indexError) {
+          return 'Індекс не вдалося побудувати: ' + this.ui.indexError;
+        }
+        if (this.ui.indexState === 'empty') {
+          return 'Індекс ще не побудований. Сервер підготує його автоматично.';
+        }
+        return 'Сервер готує індекс.';
+      },
+      searching() {
+        return this.ui.status === 'searching';
+      },
+      showEmpty() {
+        return this.ui.status === 'done' && this.ui.results.length === 0;
+      },
+      canSearch() {
+        return (
+          !this.searching &&
+          this.ui.searchReady &&
+          this.ui.query.trim().length > 0
+        );
       },
     },
     mounted() {
-      this.checkHealth();
-      this.healthTimer = window.setInterval(
-        () => this.checkHealth(),
-        HEALTH_INTERVAL_MS,
-      );
+      this.client = window.SearchClient.createSearchClient({
+        requestTimeoutMs: requestTimeoutMs,
+        onChange: (state) => {
+          this.ui = state;
+        },
+      });
+      this.ui = this.client.snapshot();
+      this.client.startHealthPolling();
     },
     beforeUnmount() {
-      window.clearInterval(this.healthTimer);
-      this.closeSocket();
+      if (this.client) {
+        this.client.dispose();
+        this.client = null;
+      }
     },
     methods: {
       stateText(state) {
         return STATE_LABELS[state] || state;
       },
-      async checkHealth() {
-        try {
-          const response = await fetch('/api/health', { cache: 'no-store' });
-          const body = await response.json();
-          this.serverAvailable = response.ok;
-          this.ollamaAvailable = body.ollama === true;
-        } catch (error) {
-          this.serverAvailable = false;
-          this.ollamaAvailable = false;
+      onQuery(event) {
+        if (this.client) {
+          this.client.setQuery(event.target.value);
         }
-        this.healthChecked = true;
-      },
-      setStage(id, state) {
-        const stage = this.stages.find((item) => item.id === id);
-        if (stage) stage.state = state;
-      },
-      failRemaining(detail) {
-        for (const stage of this.stages) {
-          if (stage.state === 'pending' || stage.state === 'running') {
-            stage.state = 'error';
-          }
-        }
-        this.error = detail;
-        this.finished = true;
-        this.searching = false;
-      },
-      closeSocket() {
-        if (!this.socket) return;
-        this.closingOnPurpose = true;
-        // A normal close (1000) makes Crow echo a valid frame; closing without
-        // a code makes the browser complain about a reserved status code.
-        this.socket.close(1000);
-        this.socket = null;
       },
       search() {
-        const query = this.query.trim();
-        if (!query || this.searching) return;
-
-        this.closeSocket();
-        this.closingOnPurpose = false;
-        this.searching = true;
-        this.finished = false;
-        this.error = '';
-        this.expansion = null;
-        this.results = [];
-        this.searchTimeMs = null;
-        this.stages = freshStages();
-
-        const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const socket = new WebSocket(
-          scheme + '://' + window.location.host + '/ws/search',
-        );
-        this.socket = socket;
-        this.setStage('query_expansion', 'running');
-
-        socket.addEventListener('open', () => {
-          socket.send(JSON.stringify({ query: query }));
-        });
-
-        socket.addEventListener('message', (event) => {
-          let message;
-          try {
-            message = JSON.parse(event.data);
-          } catch (parseError) {
-            this.failRemaining('Сервер надіслав некоректне повідомлення.');
-            this.closeSocket();
-            return;
-          }
-          this.handleMessage(message);
-        });
-
-        socket.addEventListener('error', () => {
-          if (this.closingOnPurpose) return;
-          this.failRemaining('Не вдалося з\u2019єднатися з сервером через WebSocket.');
-        });
-
-        socket.addEventListener('close', () => {
-          if (this.closingOnPurpose) return;
-          if (this.searching) {
-            this.failRemaining('З\u2019єднання закрито до завершення пошуку.');
-          }
-        });
-      },
-      handleMessage(message) {
-        if (message.stage === 'query_expansion') {
-          this.expansion = message.data || { original: '', expanded_terms: [] };
-          this.setStage('query_expansion', 'done');
-          this.setStage('keyword_search', 'running');
-          return;
-        }
-        if (message.stage === 'keyword_search') {
-          const data = message.data || {};
-          this.results = Array.isArray(data.results) ? data.results : [];
-          this.searchTimeMs = typeof data.time_ms === 'number' ? data.time_ms : null;
-          this.setStage('keyword_search', 'done');
-          this.setStage('done', 'running');
-          return;
-        }
-        if (message.stage === 'done') {
-          this.setStage('done', 'done');
-          this.finished = true;
-          this.searching = false;
-          this.closeSocket();
-          return;
-        }
-        if (message.stage === 'error') {
-          const detail =
-            message.data && message.data.message
-              ? message.data.message
-              : 'невідома помилка';
-          this.failRemaining('Помилка: ' + detail);
-          this.closeSocket();
+        if (this.client) {
+          this.client.search();
         }
       },
     },
