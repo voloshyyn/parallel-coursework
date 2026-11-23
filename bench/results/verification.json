@@ -1,0 +1,132 @@
+{
+  "date": "23.11.2026",
+  "source_commit": "ed3cc35eb74cc55ea4c7b3a0c6f067da4bb54c9a",
+  "ctest_passed": 134,
+  "ctest_total": 134,
+  "ctest_seconds": 9.28,
+  "tsan_passed": 134,
+  "tsan_total": 134,
+  "tsan_seconds": 13.78,
+  "ui_tests": 16,
+  "dataset_tests": 7,
+  "cli_tests": 6,
+  "model_preparation_tests": 3,
+  "compose": "server та ollama працюють; model-init завершився з кодом 0; окремий профіль не потрібен.",
+  "cold_start": "Новий full-том: HTTP 2.283 с; готовність індексу 143.241 с. Модель вже була в кеші.",
+  "ollama": "qwen2.5:1.5b: автоматичний прогрів; реальні терміни: ecosystem, marine, biodiversity.",
+  "websocket": "query_expansion → keyword_search → done; 10 результатів; 650.2 мс end-to-end.",
+  "cli": "Реальний C++ клієнт у Compose: 10 результатів; --json і ненульові коди помилок перевірені fixtures.",
+  "browser": "Chromium: coral reef, усі три етапи готові, 10 результатів; 0 помилок і 0 попереджень консолі.",
+  "dataset_hash_verified": true,
+  "preparation_failure_visible": true,
+  "startup_probe": {
+    "fresh_corpus_volume": true,
+    "initial_model_cache": true,
+    "http_ms": 2283.367100000305,
+    "initial_state": {
+      "index_error": "",
+      "index_state": "empty",
+      "ollama": false,
+      "search_ready": false,
+      "startup_error": "",
+      "startup_state": "preparing",
+      "status": "ok"
+    },
+    "ready_ms": 143240.55620000034,
+    "ready_state": {
+      "index_error": "",
+      "index_state": "ready",
+      "ollama": true,
+      "search_ready": true,
+      "startup_error": "",
+      "startup_state": "ready",
+      "status": "ok"
+    },
+    "stats": {
+      "documents": 12000,
+      "index_build_time_ms": 7120,
+      "threads_used": 4
+    }
+  },
+  "llm_trace": [
+    {
+      "at_ms": 603.3733,
+      "data": {
+        "expanded_terms": [
+          "ecosystem",
+          "marine",
+          "biodiversity"
+        ],
+        "original": "coral reef"
+      },
+      "stage": "query_expansion"
+    },
+    {
+      "at_ms": 607.2065,
+      "data": {
+        "results": [
+          {
+            "doc_id": "doc-009565.txt",
+            "score": 1,
+            "snippet": "ne in context. Therefore although our more lagoon two not sometimes could salt. Coral there an coral shoreline while up lagoon can loud always abyss whale tide been any abyss. Mariner dolphin first in salt"
+          },
+          {
+            "doc_id": "doc-003813.txt",
+            "score": 0.9959218498226717,
+            "snippet": "3813. This entry mentions sourdough bread in context. May could out the perhaps reef if that anchor their an our. An an up do no dark on reef lagoon and never or there they their anchor therefore to and b"
+          },
+          {
+            "doc_id": "doc-004104.txt",
+            "score": 0.9918194371148732,
+            "snippet": "rrent that his anchor whale were other estuary modern can rarely an. Up dolphin reef naïve him simple a whale anchor seagull quiet to their. New salt the or an into large may you small harbor buoy plankt"
+          },
+          {
+            "doc_id": "doc-007654.txt",
+            "score": 0.9866319681501887,
+            "snippet": "n ocean, folio 7654. This entry mentions quantum physics in context. Salt a has reef plankton there although if other have at. Their on her bright but with new he estuary we first buoy into not. A new kel"
+          },
+          {
+            "doc_id": "doc-009770.txt",
+            "score": 0.9852374353330154,
+            "snippet": "t. Which has quiet lagoon than was she bright who will would tide rapid by only coral buoy his an new our to. When mariner tide out current estuary first abyss an those all current quiet what new. Kelp wha"
+          },
+          {
+            "doc_id": "doc-008317.txt",
+            "score": 0.9825584284574442,
+            "snippet": "tudy of ocean, part 8317. This entry mentions mosaic harbor in context. However coral than these estuary because rapid if therefore wave a simple large simple from dolphin seagull buoy. Modern but bright d"
+          },
+          {
+            "doc_id": "doc-008748.txt",
+            "score": 0.982024288714035,
+            "snippet": "a careful time a their her although dark he you are anchor not from we. So but coral she what the abyss its perhaps seagull have on. Their up dolphin rarely he not or of are or they will lagoon by. Or ves"
+          },
+          {
+            "doc_id": "doc-003360.txt",
+            "score": 0.981977900184243,
+            "snippet": "e the perhaps. Because time because an any estuary estuary modern them them the coral from but then. This those would what anchor has kelp no and his therefore no so what whale in would. That more by its t"
+          },
+          {
+            "doc_id": "doc-007304.txt",
+            "score": 0.980444187898375,
+            "snippet": "wo or a was on such rapid other what to bright. You about a seagull the because reef an if mariner he what him they kelp from bright to. Estuary to that buoy often a as two him have would be mariner no hi"
+          },
+          {
+            "doc_id": "doc-004484.txt",
+            "score": 0.9776583932723762,
+            "snippet": "e only was but careful current them or which at dark. The was complex loud wave reef her however was that simple than estuary. Although harbor it sometimes perhaps never wave so whale small which abyss ne"
+          }
+        ],
+        "time_ms": 4
+      },
+      "stage": "keyword_search"
+    },
+    {
+      "at_ms": 650.2429999999999,
+      "stage": "done"
+    }
+  ],
+  "limitations": [
+    "Перше завантаження моделі перевірено HTTP-fixture; реальна Ollama використовувала наявний кеш.",
+    "Інструментація atomic_thread_fence у сторонній Asio має попередження GCC."
+  ]
+}

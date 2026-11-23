@@ -1,0 +1,299 @@
+[
+  {
+    "query": "coral reef",
+    "expected": "nonempty",
+    "actual_count": 10,
+    "results": [
+      {
+        "doc_id": "doc-009565.txt",
+        "score": 1.0,
+        "snippet": "ne in context. Therefore although our more lagoon two not sometimes could salt. Coral there an coral shoreline while up lagoon can loud always abyss whale tide been any abyss. Mariner dolphin first in salt"
+      },
+      {
+        "doc_id": "doc-003813.txt",
+        "score": 0.9959218498226717,
+        "snippet": "3813. This entry mentions sourdough bread in context. May could out the perhaps reef if that anchor their an our. An an up do no dark on reef lagoon and never or there they their anchor therefore to and b"
+      },
+      {
+        "doc_id": "doc-004104.txt",
+        "score": 0.9918194371148732,
+        "snippet": "rrent that his anchor whale were other estuary modern can rarely an. Up dolphin reef na\u00efve him simple a whale anchor seagull quiet to their. New salt the or an into large may you small harbor buoy plankt"
+      },
+      {
+        "doc_id": "doc-007654.txt",
+        "score": 0.9866319681501887,
+        "snippet": "n ocean, folio 7654. This entry mentions quantum physics in context. Salt a has reef plankton there although if other have at. Their on her bright but with new he estuary we first buoy into not. A new kel"
+      },
+      {
+        "doc_id": "doc-009770.txt",
+        "score": 0.9852374353330154,
+        "snippet": "t. Which has quiet lagoon than was she bright who will would tide rapid by only coral buoy his an new our to. When mariner tide out current estuary first abyss an those all current quiet what new. Kelp wha"
+      },
+      {
+        "doc_id": "doc-008317.txt",
+        "score": 0.9825584284574442,
+        "snippet": "tudy of ocean, part 8317. This entry mentions mosaic harbor in context. However coral than these estuary because rapid if therefore wave a simple large simple from dolphin seagull buoy. Modern but bright d"
+      },
+      {
+        "doc_id": "doc-008748.txt",
+        "score": 0.982024288714035,
+        "snippet": "a careful time a their her although dark he you are anchor not from we. So but coral she what the abyss its perhaps seagull have on. Their up dolphin rarely he not or of are or they will lagoon by. Or ves"
+      },
+      {
+        "doc_id": "doc-003360.txt",
+        "score": 0.981977900184243,
+        "snippet": "e the perhaps. Because time because an any estuary estuary modern them them the coral from but then. This those would what anchor has kelp no and his therefore no so what whale in would. That more by its t"
+      },
+      {
+        "doc_id": "doc-007304.txt",
+        "score": 0.980444187898375,
+        "snippet": "wo or a was on such rapid other what to bright. You about a seagull the because reef an if mariner he what him they kelp from bright to. Estuary to that buoy often a as two him have would be mariner no hi"
+      },
+      {
+        "doc_id": "doc-004484.txt",
+        "score": 0.9776583932723762,
+        "snippet": "e only was but careful current them or which at dark. The was complex loud wave reef her however was that simple than estuary. Although harbor it sometimes perhaps never wave so whale small which abyss ne"
+      }
+    ],
+    "passed": true
+  },
+  {
+    "query": "quantum physics",
+    "expected": "nonempty",
+    "actual_count": 10,
+    "results": [
+      {
+        "doc_id": "doc-009643.txt",
+        "score": 1.0,
+        "snippet": "will to then has they but their then were small although sample although be was physics be at and sample. Would field while out rarely in no two up would an. Will up his reaction not can has perhaps particle"
+      },
+      {
+        "doc_id": "doc-002217.txt",
+        "score": 0.9893759667170005,
+        "snippet": "2217. This entry mentions algorithm graph in context. Other quiet and that dark quantum time be has measure measure energy rapid our that or not no small in. More a sample on any atom rarely bright fossil th"
+      },
+      {
+        "doc_id": "doc-000635.txt",
+        "score": 0.9855012710239982,
+        "snippet": "than first up its particle simple reaction up with it simple said always their. Physics so the this as the he him were that physics can out a its would these his. Fossil always an that theory rapid up measur"
+      },
+      {
+        "doc_id": "doc-003521.txt",
+        "score": 0.9784873885177293,
+        "snippet": "and complex large with. Bright then layer or often in which only from into been quantum you. The two by all them is his modern first often to new out but simple often from measure the loud. His some new are"
+      },
+      {
+        "doc_id": "doc-003915.txt",
+        "score": 0.9782984462607561,
+        "snippet": "quiet these with molecule ancient reaction he simple more not rarely. Therefore quantum that to while his can or than than our a and him as measure their there for this. Such or other his are although an a t"
+      },
+      {
+        "doc_id": "doc-001382.txt",
+        "score": 0.9773369777274357,
+        "snippet": "vations about science, entry 1382. This entry mentions ancient rome in context. Physics you complex it rarely fossil molecule the reaction complex the ancient about their reaction then simple crystal their."
+      },
+      {
+        "doc_id": "doc-006141.txt",
+        "score": 0.9768438010391854,
+        "snippet": "ext. On out quiet out this from although about particle theory by than molecule quantum. There those small physics would because the however these. Of not atom my the an there more layer while with may and h"
+      },
+      {
+        "doc_id": "doc-008696.txt",
+        "score": 0.9706637075395649,
+        "snippet": "then and measure. First some bright rarely other but into a about its out their physics such physics. Only and laboratory or can sometimes who experiment were have first her about who by or the laboratory so"
+      },
+      {
+        "doc_id": "doc-011890.txt",
+        "score": 0.9693122203896656,
+        "snippet": "lio 11890. This entry mentions saffron harvest in context. An who sometimes all physics his its what dark may new first energy quiet when the large when or. Sometimes to has have this only could be however t"
+      },
+      {
+        "doc_id": "doc-001065.txt",
+        "score": 0.9691061674654167,
+        "snippet": "le my all time their but experiment. Time experiment when their rapid first any quantum his that there into large be as often. In up said a when of sample as who out been but their although crystal sample ph"
+      }
+    ],
+    "passed": true
+  },
+  {
+    "query": "ancient rome",
+    "expected": "nonempty",
+    "actual_count": 10,
+    "results": [
+      {
+        "doc_id": "doc-002363.txt",
+        "score": 1.0,
+        "snippet": ", section 2363. This entry mentions velvet curtain in context. Do often more is ancient on however small bright this could empire were ancient. With which what dark to for will when him or all been her small"
+      },
+      {
+        "doc_id": "doc-002068.txt",
+        "score": 0.9960003997784221,
+        "snippet": "ge any would never legion was century and. Other you an was out said kingdom of ancient. May parchment simple complex it rapid rome these castle she complex castle and than out their dynasty never an. As rui"
+      },
+      {
+        "doc_id": "doc-006826.txt",
+        "score": 0.9932501998903838,
+        "snippet": "s on history, folio 6826. This entry mentions monsoon rain in context. Medieval ancient an and out their you who or she their and there with in to may quiet century medieval. Legion him perhaps will fortress"
+      },
+      {
+        "doc_id": "doc-005019.txt",
+        "score": 0.9871890928212284,
+        "snippet": "her however dark although never two dynasty always sometimes rarely rapid what. Ancient as or you those medieval then than there simple. This empire than as him often who is archive fortress ancient out. Tha"
+      },
+      {
+        "doc_id": "doc-004058.txt",
+        "score": 0.9797431390581658,
+        "snippet": "e or chronicle never because dynasty these then who and \u0491\u0430\u043d\u043e\u043a has these or rome could. Complex never because dark not small ruin if century castle. Dark about an that small rarely legion may therefor"
+      },
+      {
+        "doc_id": "doc-005924.txt",
+        "score": 0.9787594018010606,
+        "snippet": "y kingdom sometimes although at an the an that the citadel as citadel or which. Ancient sometimes you has that at its chronicle this their was that not with citadel quiet sometimes. If up out ancient fortres"
+      },
+      {
+        "doc_id": "doc-010716.txt",
+        "score": 0.9768806414866507,
+        "snippet": "e legion rapid its this my a that parchment up when kingdom about. Century this ancient this quiet bright castle bright ancient an will. Relic kingdom what to while is more kingdom from more. Parchment said"
+      },
+      {
+        "doc_id": "doc-010354.txt",
+        "score": 0.9765530553527422,
+        "snippet": "context. If other its they there always other if were these more citadel treaty ancient. Its rapid dynasty although will we some rapid will up relic the you castle complex although her he was by her. Some re"
+      },
+      {
+        "doc_id": "doc-005186.txt",
+        "score": 0.9764230661402038,
+        "snippet": "ny medieval. Then who although not time its my some with century when only time rome large to perhaps our. At dynasty only castle complex it was of medieval only its he was and citadel empire what chronic"
+      },
+      {
+        "doc_id": "doc-004725.txt",
+        "score": 0.9764097012217638,
+        "snippet": "e chronicle been rarely \u0491\u0430\u043d\u043e\u043a more what. Treaty all if this relic its only rome they ruin ancient him fortress rome we his. Is medieval rome him so out loud for her from small bright simple his castl"
+      }
+    ],
+    "passed": true
+  },
+  {
+    "query": "deep ocean whale",
+    "expected": "nonempty",
+    "actual_count": 10,
+    "results": [
+      {
+        "doc_id": "doc-007488.txt",
+        "score": 1.0,
+        "snippet": "Field notes on ocean, volume 7488. This entry mentions cactus desert in context. Dark if first such be no shoreline his lagoon seagull howev"
+      },
+      {
+        "doc_id": "doc-011415.txt",
+        "score": 0.9888824565720236,
+        "snippet": "Working notebook: ocean, chapter 11415. This entry mentions granite quarry in context. But current plankton first what such coral while these r"
+      },
+      {
+        "doc_id": "doc-010968.txt",
+        "score": 0.987621335080107,
+        "snippet": "Field notes on ocean, volume 10968. This entry mentions cactus desert in context. By an often be seagull therefore coral may do his whale th"
+      },
+      {
+        "doc_id": "doc-011888.txt",
+        "score": 0.9861427906463152,
+        "snippet": "Observations about ocean, entry 11888. This entry mentions glacier fjord in context. Could the time harbor a abyss up never they who these estua"
+      },
+      {
+        "doc_id": "doc-000313.txt",
+        "score": 0.9831898512739567,
+        "snippet": "A short study of ocean, part 313. This entry mentions mangrove swamp in context. Such buoy simple tide simple their for have current which his"
+      },
+      {
+        "doc_id": "doc-002720.txt",
+        "score": 0.9787059710235471,
+        "snippet": "Observations about ocean, entry 2720. This entry mentions quartz crystal in context. First loud that than buoy because all was lagoon what his c"
+      },
+      {
+        "doc_id": "doc-007375.txt",
+        "score": 0.9761763876060622,
+        "snippet": "A short study of ocean, part 7375. This entry mentions harmonica tune in context. Rapid we for we been or often because into a vessel it about"
+      },
+      {
+        "doc_id": "doc-011896.txt",
+        "score": 0.9759529840546698,
+        "snippet": "Collected remarks on ocean, folio 11896. This entry mentions monsoon rain in context. From was in no are a what lagoon that a dolphin quiet shorel"
+      },
+      {
+        "doc_id": "doc-010059.txt",
+        "score": 0.9733061461908907,
+        "snippet": "Working notebook: ocean, chapter 10059. This entry mentions kestrel meadow in context. Of that rarely which while said at mariner in modern wer"
+      },
+      {
+        "doc_id": "doc-000060.txt",
+        "score": 0.9724536971408922,
+        "snippet": "Field notes on ocean, volume 60. This entry mentions deep ocean whale in context. Or only are modern you their while would to more. Quiet al"
+      }
+    ],
+    "passed": true
+  },
+  {
+    "query": "galaxy telescope",
+    "expected": "nonempty",
+    "actual_count": 10,
+    "results": [
+      {
+        "doc_id": "doc-010717.txt",
+        "score": 1.0,
+        "snippet": "an when modern her been rapid horizon was. But an an first have will be gravity telescope a such modern dark but solar nebula them out them nebula my her. Was asteroid a his said and we would of large that qui"
+      },
+      {
+        "doc_id": "doc-004314.txt",
+        "score": 0.9990189166427866,
+        "snippet": "ry mentions zephyr breeze in context. With other those have sometimes star that telescope and satellite loud bright to. She my have could and are his if large you time been. Was sometimes its telescope he is p"
+      },
+      {
+        "doc_id": "doc-002160.txt",
+        "score": 0.9961115008549707,
+        "snippet": "ume 2160. This entry mentions deep ocean whale in context. Large perhaps quasar telescope vacuum be with some eclipse then. Modern dark when are large although rocket comet however any bright. Nebula been care"
+      },
+      {
+        "doc_id": "doc-003709.txt",
+        "score": 0.9837637228725266,
+        "snippet": "his small who perhaps which star vacuum rapid at. Although horizon could bright telescope no are was asteroid solar asteroid nebula. Meteor this but therefore planet or for comet all a. Always no solar galaxy"
+      },
+      {
+        "doc_id": "doc-007423.txt",
+        "score": 0.9764443842928701,
+        "snippet": "her comet for only. Nebula cosmos vacuum this time my his at meteor than there. Galaxy eclipse small or she from a galaxy will and gravity large vacuum her star quiet. May and and was complex we you rapid b"
+      },
+      {
+        "doc_id": "doc-011391.txt",
+        "score": 0.9671822393713289,
+        "snippet": "lite has all if. Therefore is are up they said at an can quasar orbit lunar for telescope. Satellite be careful asteroid their satellite this more horizon but. Satellite which while modern it or her a their ha"
+      },
+      {
+        "doc_id": "doc-008469.txt",
+        "score": 0.9618164569960117,
+        "snippet": "g notebook: space, chapter 8469. This entry mentions kestrel meadow in context. Galaxy which quasar this have new at her although however. Nebula that because planet an was as any which his large she then t"
+      },
+      {
+        "doc_id": "doc-003809.txt",
+        "score": 0.9612528837176011,
+        "snippet": "hem him vacuum new often a all her when no these what orbit is would he horizon telescope first at. These or small horizon an we be my careful complex star bright than asteroid his would. Other that would can"
+      },
+      {
+        "doc_id": "doc-007107.txt",
+        "score": 0.9602336928547461,
+        "snippet": "an if ancient two by by their this my never. But loud quasar him this first was telescope solar then careful gravity are other which its have new galaxy. But gravity vacuum rapid their modern rapid was then fi"
+      },
+      {
+        "doc_id": "doc-005136.txt",
+        "score": 0.9595596136052984,
+        "snippet": "notes on space, volume 5136. This entry mentions violin sonata in context. His galaxy quiet time new its any bright often any only they meteor all all from his asteroid. The that simple horizon orbit those"
+      }
+    ],
+    "passed": true
+  },
+  {
+    "query": "zzzzunknowntermxyz",
+    "expected": "empty",
+    "actual_count": 0,
+    "results": [],
+    "passed": true
+  }
+]

@@ -4,3 +4,6 @@ models/
 *.ollama/
 .playwright-cli/
 output/playwright/
+__pycache__/
+*.py[cod]
+.venv/

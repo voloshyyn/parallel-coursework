@@ -1,0 +1,274 @@
+Internal ctest changing into directory: /src/build
+Test project /src/build
+        Start   1: SearchApi.RejectsInvalidThreads
+  1/134 Test   #1: SearchApi.RejectsInvalidThreads .........................................   Passed    0.03 sec
+        Start   2: SearchApi.IndexesDocumentsAndServesStats
+  2/134 Test   #2: SearchApi.IndexesDocumentsAndServesStats ................................   Passed    0.01 sec
+        Start   3: SearchApi.DefaultsToFourThreads
+  3/134 Test   #3: SearchApi.DefaultsToFourThreads .........................................   Passed    0.01 sec
+        Start   4: SearchApi.SearchBeforeIndexReturns409
+  4/134 Test   #4: SearchApi.SearchBeforeIndexReturns409 ...................................   Passed    0.01 sec
+        Start   5: SearchApi.RejectsInvalidSearchRequests
+  5/134 Test   #5: SearchApi.RejectsInvalidSearchRequests ..................................   Passed    0.01 sec
+        Start   6: SearchApi.SearchesKeywordModeWithRankedResults
+  6/134 Test   #6: SearchApi.SearchesKeywordModeWithRankedResults ..........................   Passed    0.01 sec
+        Start   7: SearchApi.SearchDuringBuildReturns409
+  7/134 Test   #7: SearchApi.SearchDuringBuildReturns409 ...................................   Passed    0.02 sec
+        Start   8: SearchApi.SearchDuringRebuildReturns409
+  8/134 Test   #8: SearchApi.SearchDuringRebuildReturns409 .................................   Passed    0.02 sec
+        Start   9: SearchApi.StatsMatchTheLastSuccessfulBuild
+  9/134 Test   #9: SearchApi.StatsMatchTheLastSuccessfulBuild ..............................   Passed    0.02 sec
+        Start  10: SearchApi.SearchUsesExpandedTerms
+ 10/134 Test  #10: SearchApi.SearchUsesExpandedTerms .......................................   Passed    0.01 sec
+        Start  11: SearchApi.SearchFallsBackToOriginalQueryWithoutExpansion
+ 11/134 Test  #11: SearchApi.SearchFallsBackToOriginalQueryWithoutExpansion ................   Passed    0.02 sec
+        Start  12: HealthEndpoint.AnswersFasterThan200MsWhileProbeIsSlow
+ 12/134 Test  #12: HealthEndpoint.AnswersFasterThan200MsWhileProbeIsSlow ...................   Passed    1.01 sec
+        Start  13: HealthEndpoint.Returns200AndCachedAvailability
+ 13/134 Test  #13: HealthEndpoint.Returns200AndCachedAvailability ..........................   Passed    0.01 sec
+        Start  14: HealthEndpoint.ReportsIndexStateAndReadiness
+ 14/134 Test  #14: HealthEndpoint.ReportsIndexStateAndReadiness ............................   Passed    0.01 sec
+        Start  15: HealthEndpoint.ReportsABuildingIndex
+ 15/134 Test  #15: HealthEndpoint.ReportsABuildingIndex ....................................   Passed    0.01 sec
+        Start  16: HealthEndpoint.ExposesPreparationFailureWithoutChangingHealthContract
+ 16/134 Test  #16: HealthEndpoint.ExposesPreparationFailureWithoutChangingHealthContract ...   Passed    0.03 sec
+        Start  17: OllamaMonitor.PublishesProbeResult
+ 17/134 Test  #17: OllamaMonitor.PublishesProbeResult ......................................   Passed    0.02 sec
+        Start  18: IndexService.IgnoresTheDatasetManifestAndOtherNonTextFiles
+ 18/134 Test  #18: IndexService.IgnoresTheDatasetManifestAndOtherNonTextFiles ..............   Passed    0.01 sec
+        Start  19: IndexService.StartsEmpty
+ 19/134 Test  #19: IndexService.StartsEmpty ................................................   Passed    0.01 sec
+        Start  20: IndexService.BuildsIndexFromDirectory
+ 20/134 Test  #20: IndexService.BuildsIndexFromDirectory ...................................   Passed    0.01 sec
+        Start  21: IndexService.RebuildReplacesPublishedIndex
+ 21/134 Test  #21: IndexService.RebuildReplacesPublishedIndex ..............................   Passed    0.01 sec
+        Start  22: IndexService.SequentialBuildsPublishIndexAndStatsTogether
+ 22/134 Test  #22: IndexService.SequentialBuildsPublishIndexAndStatsTogether ...............   Passed    0.01 sec
+        Start  23: IndexService.RejectsSecondBuildWhileFirstRuns
+ 23/134 Test  #23: IndexService.RejectsSecondBuildWhileFirstRuns ...........................   Passed    0.01 sec
+        Start  24: IndexService.RejectsConcurrentBuildWhilePublishedIndexIsRebuilt
+ 24/134 Test  #24: IndexService.RejectsConcurrentBuildWhilePublishedIndexIsRebuilt .........   Passed    0.01 sec
+        Start  25: IndexService.KeepsPublishedGenerationWhenRebuildFails
+ 25/134 Test  #25: IndexService.KeepsPublishedGenerationWhenRebuildFails ...................   Passed    0.01 sec
+        Start  26: IndexService.ReportsEmptyStateAfterFailedFirstBuild
+ 26/134 Test  #26: IndexService.ReportsEmptyStateAfterFailedFirstBuild .....................   Passed    0.01 sec
+        Start  27: IndexService.BuildSucceedsAfterFailedFirstBuild
+ 27/134 Test  #27: IndexService.BuildSucceedsAfterFailedFirstBuild .........................   Passed    0.01 sec
+        Start  28: IndexService.FailsWhenDirectoryIsMissing
+ 28/134 Test  #28: IndexService.FailsWhenDirectoryIsMissing ................................   Passed    0.01 sec
+        Start  29: IndexService.RejectsZeroThreads
+ 29/134 Test  #29: IndexService.RejectsZeroThreads .........................................   Passed    0.01 sec
+        Start  30: InvertedIndex.RejectsZeroShards
+ 30/134 Test  #30: InvertedIndex.RejectsZeroShards .........................................   Passed    0.00 sec
+        Start  31: InvertedIndex.IndexesTermFrequencies
+ 31/134 Test  #31: InvertedIndex.IndexesTermFrequencies ....................................   Passed    0.00 sec
+        Start  32: InvertedIndex.ReturnsNothingForUnknownTerm
+ 32/134 Test  #32: InvertedIndex.ReturnsNothingForUnknownTerm ..............................   Passed    0.00 sec
+        Start  33: InvertedIndex.IgnoresDocumentWithoutTokens
+ 33/134 Test  #33: InvertedIndex.IgnoresDocumentWithoutTokens ..............................   Passed    0.00 sec
+        Start  34: InvertedIndex.CountsRepeatedWordsAndDocumentLength
+ 34/134 Test  #34: InvertedIndex.CountsRepeatedWordsAndDocumentLength ......................   Passed    0.00 sec
+        Start  35: InvertedIndex.ReportsDocumentMetadataInInsertionOrder
+ 35/134 Test  #35: InvertedIndex.ReportsDocumentMetadataInInsertionOrder ...................   Passed    0.00 sec
+        Start  36: InvertedIndex.RejectsDuplicateDocumentId
+ 36/134 Test  #36: InvertedIndex.RejectsDuplicateDocumentId ................................   Passed    0.00 sec
+        Start  37: InvertedIndex.ClearDropsDocumentsAndPostings
+ 37/134 Test  #37: InvertedIndex.ClearDropsDocumentsAndPostings ............................   Passed    0.00 sec
+        Start  38: InvertedIndex.SamePostingsForAnyShardCount
+ 38/134 Test  #38: InvertedIndex.SamePostingsForAnyShardCount ..............................   Passed    0.00 sec
+        Start  39: InvertedIndex.ParallelBuildMatchesSequentialBuild
+ 39/134 Test  #39: InvertedIndex.ParallelBuildMatchesSequentialBuild .......................   Passed    0.01 sec
+        Start  40: InvertedIndex.AcceptsWritesFromManyThreads
+ 40/134 Test  #40: InvertedIndex.AcceptsWritesFromManyThreads ..............................   Passed    0.01 sec
+        Start  41: InvertedIndex.AnswersLookupsWhileAnotherThreadIndexes
+ 41/134 Test  #41: InvertedIndex.AnswersLookupsWhileAnotherThreadIndexes ...................   Passed    0.00 sec
+        Start  42: OllamaModelHealth.RequiresTheSelectedModel
+ 42/134 Test  #42: OllamaModelHealth.RequiresTheSelectedModel ..............................   Passed    0.01 sec
+        Start  43: OllamaClient.ExpandsQueryWithGeneratedTerms
+ 43/134 Test  #43: OllamaClient.ExpandsQueryWithGeneratedTerms .............................   Passed    0.01 sec
+        Start  44: OllamaClient.DropsDuplicatesAndTermsAlreadyInTheQuery
+ 44/134 Test  #44: OllamaClient.DropsDuplicatesAndTermsAlreadyInTheQuery ...................   Passed    0.01 sec
+        Start  45: OllamaClient.LimitsTheNumberOfExpandedTerms
+ 45/134 Test  #45: OllamaClient.LimitsTheNumberOfExpandedTerms .............................   Passed    0.01 sec
+        Start  46: OllamaClient.ReturnsNothingOnServerError
+ 46/134 Test  #46: OllamaClient.ReturnsNothingOnServerError ................................   Passed    0.01 sec
+        Start  47: OllamaClient.ReturnsNothingOnMalformedBody
+ 47/134 Test  #47: OllamaClient.ReturnsNothingOnMalformedBody ..............................   Passed    0.01 sec
+        Start  48: OllamaClient.ReturnsNothingWhenTheServerIsUnreachable
+ 48/134 Test  #48: OllamaClient.ReturnsNothingWhenTheServerIsUnreachable ...................   Passed    0.01 sec
+        Start  49: OllamaClient.StopsWaitingWhenGenerationTimesOut
+ 49/134 Test  #49: OllamaClient.StopsWaitingWhenGenerationTimesOut .........................   Passed    0.51 sec
+        Start  50: OllamaClient.ProbesAvailabilityWithTheTagsEndpoint
+ 50/134 Test  #50: OllamaClient.ProbesAvailabilityWithTheTagsEndpoint ......................   Passed    0.01 sec
+        Start  51: OllamaClient.IgnoresNumberedListMarkers
+ 51/134 Test  #51: OllamaClient.IgnoresNumberedListMarkers .................................   Passed    0.01 sec
+        Start  52: OllamaClient.IgnoresInlineNumberedMarkers
+ 52/134 Test  #52: OllamaClient.IgnoresInlineNumberedMarkers ...............................   Passed    0.01 sec
+        Start  53: OllamaClient.KeepsMeaningfulNumbersInTheAnswer
+ 53/134 Test  #53: OllamaClient.KeepsMeaningfulNumbersInTheAnswer ..........................   Passed    0.01 sec
+        Start  54: OllamaClient.StopsAVerySlowStreamAtTheGenerationDeadline
+ 54/134 Test  #54: OllamaClient.StopsAVerySlowStreamAtTheGenerationDeadline ................   Passed    0.07 sec
+        Start  55: SearchEngine.ReturnsNothingForEmptyQuery
+ 55/134 Test  #55: SearchEngine.ReturnsNothingForEmptyQuery ................................   Passed    0.00 sec
+        Start  56: SearchEngine.ReturnsNothingForUnknownTerm
+ 56/134 Test  #56: SearchEngine.ReturnsNothingForUnknownTerm ...............................   Passed    0.00 sec
+        Start  57: SearchEngine.ReturnsNothingForEmptyIndex
+ 57/134 Test  #57: SearchEngine.ReturnsNothingForEmptyIndex ................................   Passed    0.00 sec
+        Start  58: SearchEngine.RanksByTermFrequencyAndNormalizesScore
+ 58/134 Test  #58: SearchEngine.RanksByTermFrequencyAndNormalizesScore .....................   Passed    0.00 sec
+        Start  59: SearchEngine.BreaksTiesByDocumentId
+ 59/134 Test  #59: SearchEngine.BreaksTiesByDocumentId .....................................   Passed    0.01 sec
+        Start  60: SearchEngine.AddsScoresOfSeveralQueryTerms
+ 60/134 Test  #60: SearchEngine.AddsScoresOfSeveralQueryTerms ..............................   Passed    0.01 sec
+        Start  61: SearchEngine.IgnoresRepeatedQueryTerms
+ 61/134 Test  #61: SearchEngine.IgnoresRepeatedQueryTerms ..................................   Passed    0.01 sec
+        Start  62: SearchEngine.LimitsResults
+ 62/134 Test  #62: SearchEngine.LimitsResults ..............................................   Passed    0.01 sec
+        Start  63: SearchEngine.SnippetSurroundsMatchedTerm
+ 63/134 Test  #63: SearchEngine.SnippetSurroundsMatchedTerm ................................   Passed    0.01 sec
+        Start  64: SearchEngine.HitWithoutFileOnDiskHasEmptySnippet
+ 64/134 Test  #64: SearchEngine.HitWithoutFileOnDiskHasEmptySnippet ........................   Passed    0.00 sec
+        Start  65: SearchEngine.SnippetMatchesWholeTokenNotSubstring
+ 65/134 Test  #65: SearchEngine.SnippetMatchesWholeTokenNotSubstring .......................   Passed    0.00 sec
+        Start  66: SearchEngine.SnippetMatchesFoldedCyrillicTokenBetweenPunctuation
+ 66/134 Test  #66: SearchEngine.SnippetMatchesFoldedCyrillicTokenBetweenPunctuation ........   Passed    0.01 sec
+        Start  67: SearchPipeline.SearchesTheOriginalQueryWithoutAnExpander
+ 67/134 Test  #67: SearchPipeline.SearchesTheOriginalQueryWithoutAnExpander ................   Passed    0.01 sec
+        Start  68: SearchPipeline.SearchesExpandedTermsTogetherWithTheQuery
+ 68/134 Test  #68: SearchPipeline.SearchesExpandedTermsTogetherWithTheQuery ................   Passed    0.01 sec
+        Start  69: SearchPipeline.FallsBackToTheOriginalQueryWhenExpansionIsEmpty
+ 69/134 Test  #69: SearchPipeline.FallsBackToTheOriginalQueryWhenExpansionIsEmpty ..........   Passed    0.01 sec
+        Start  70: SearchPipeline.FallsBackWhenExpansionThrows
+ 70/134 Test  #70: SearchPipeline.FallsBackWhenExpansionThrows .............................   Passed    0.01 sec
+        Start  71: SearchPipeline.DoesNotExpandAnEmptyQuery
+ 71/134 Test  #71: SearchPipeline.DoesNotExpandAnEmptyQuery ................................   Passed    0.00 sec
+        Start  72: SearchPipeline.ReportsExpansionBeforeTheKeywordSearchFinishes
+ 72/134 Test  #72: SearchPipeline.ReportsExpansionBeforeTheKeywordSearchFinishes ...........   Passed    0.01 sec
+        Start  73: TempDir.CreatesUniqueDirectoriesAndRemovesThem
+ 73/134 Test  #73: TempDir.CreatesUniqueDirectoriesAndRemovesThem ..........................   Passed    0.02 sec
+        Start  74: TempDir.DoesNotRemoveOrChangeAnExistingDirectory
+ 74/134 Test  #74: TempDir.DoesNotRemoveOrChangeAnExistingDirectory ........................   Passed    0.01 sec
+        Start  75: TempDir.IsSafeUnderConcurrentCreation
+ 75/134 Test  #75: TempDir.IsSafeUnderConcurrentCreation ...................................   Passed    0.09 sec
+        Start  76: ThreadPool.RejectsZeroThreads
+ 76/134 Test  #76: ThreadPool.RejectsZeroThreads ...........................................   Passed    0.00 sec
+        Start  77: ThreadPool.ExecutesEverySubmittedTask
+ 77/134 Test  #77: ThreadPool.ExecutesEverySubmittedTask ...................................   Passed    0.02 sec
+        Start  78: ThreadPool.ExecutesEveryTaskWithManyThreads
+ 78/134 Test  #78: ThreadPool.ExecutesEveryTaskWithManyThreads .............................   Passed    0.08 sec
+        Start  79: ThreadPool.PreservesOrderWithSingleThread
+ 79/134 Test  #79: ThreadPool.PreservesOrderWithSingleThread ...............................   Passed    0.00 sec
+        Start  80: ThreadPool.ShutdownWaitsForRunningTask
+ 80/134 Test  #80: ThreadPool.ShutdownWaitsForRunningTask ..................................   Passed    0.15 sec
+        Start  81: ThreadPool.KeepsRunningAfterTaskThrows
+ 81/134 Test  #81: ThreadPool.KeepsRunningAfterTaskThrows ..................................   Passed    0.00 sec
+        Start  82: ThreadPool.ReportsUnknownTaskException
+ 82/134 Test  #82: ThreadPool.ReportsUnknownTaskException ..................................   Passed    0.00 sec
+        Start  83: ThreadPool.RejectsTaskAfterShutdown
+ 83/134 Test  #83: ThreadPool.RejectsTaskAfterShutdown .....................................   Passed    0.00 sec
+        Start  84: ThreadPool.ReportsItsQueueCapacity
+ 84/134 Test  #84: ThreadPool.ReportsItsQueueCapacity ......................................   Passed    0.00 sec
+        Start  85: ThreadPool.RejectsTasksWhenTheBoundedQueueIsFull
+ 85/134 Test  #85: ThreadPool.RejectsTasksWhenTheBoundedQueueIsFull ........................   Passed    0.00 sec
+        Start  86: ThreadPool.JoinsCreatedWorkersWhenThreadCreationFails
+ 86/134 Test  #86: ThreadPool.JoinsCreatedWorkersWhenThreadCreationFails ...................   Passed    0.00 sec
+        Start  87: ThreadPool.RejectsEmptyTask
+ 87/134 Test  #87: ThreadPool.RejectsEmptyTask .............................................   Passed    0.00 sec
+        Start  88: ThreadPool.DestructorWaitsForQueuedTasks
+ 88/134 Test  #88: ThreadPool.DestructorWaitsForQueuedTasks ................................   Passed    0.00 sec
+        Start  89: ThreadPool.ReportsThreadCount
+ 89/134 Test  #89: ThreadPool.ReportsThreadCount ...........................................   Passed    0.00 sec
+        Start  90: ThreadPool.ShutdownIsSafeForConcurrentCallers
+ 90/134 Test  #90: ThreadPool.ShutdownIsSafeForConcurrentCallers ...........................   Passed    0.02 sec
+        Start  91: ThreadPool.AcceptsTasksFromManyProducers
+ 91/134 Test  #91: ThreadPool.AcceptsTasksFromManyProducers ................................   Passed    0.01 sec
+        Start  92: ThreadPool.LosesNoTaskWhenShutdownRunsConcurrently
+ 92/134 Test  #92: ThreadPool.LosesNoTaskWhenShutdownRunsConcurrently ......................   Passed    0.01 sec
+        Start  93: Tokenizer.LowercasesAscii
+ 93/134 Test  #93: Tokenizer.LowercasesAscii ...............................................   Passed    0.00 sec
+        Start  94: Tokenizer.SplitsOnPunctuationAndSymbols
+ 94/134 Test  #94: Tokenizer.SplitsOnPunctuationAndSymbols .................................   Passed    0.00 sec
+        Start  95: Tokenizer.KeepsDigitsInsideTokens
+ 95/134 Test  #95: Tokenizer.KeepsDigitsInsideTokens .......................................   Passed    0.00 sec
+        Start  96: Tokenizer.CollapsesRepeatedSeparators
+ 96/134 Test  #96: Tokenizer.CollapsesRepeatedSeparators ...................................   Passed    0.00 sec
+        Start  97: Tokenizer.ReturnsNothingForEmptyOrPunctuationOnlyText
+ 97/134 Test  #97: Tokenizer.ReturnsNothingForEmptyOrPunctuationOnlyText ...................   Passed    0.00 sec
+        Start  98: Tokenizer.KeepsMultiByteWordsIntact
+ 98/134 Test  #98: Tokenizer.KeepsMultiByteWordsIntact .....................................   Passed    0.00 sec
+        Start  99: Tokenizer.LowercasesCyrillic
+ 99/134 Test  #99: Tokenizer.LowercasesCyrillic ............................................   Passed    0.00 sec
+        Start 100: Tokenizer.TreatsNonAsciiPunctuationAsSeparator
+100/134 Test #100: Tokenizer.TreatsNonAsciiPunctuationAsSeparator ..........................   Passed    0.00 sec
+        Start 101: Tokenizer.LeavesUnknownMultiByteLettersUnchanged
+101/134 Test #101: Tokenizer.LeavesUnknownMultiByteLettersUnchanged ........................   Passed    0.00 sec
+        Start 102: Tokenizer.TreatsInvalidUtf8AsSeparator
+102/134 Test #102: Tokenizer.TreatsInvalidUtf8AsSeparator ..................................   Passed    0.00 sec
+        Start 103: Tokenizer.RejectsInvalidUtf8Sequences
+103/134 Test #103: Tokenizer.RejectsInvalidUtf8Sequences ...................................   Passed    0.00 sec
+        Start 104: Tokenizer.TreatsTruncatedUtf8AtEndOfTextAsSeparator
+104/134 Test #104: Tokenizer.TreatsTruncatedUtf8AtEndOfTextAsSeparator .....................   Passed    0.00 sec
+        Start 105: Tokenizer.AcceptsValidUtf8BoundarySequences
+105/134 Test #105: Tokenizer.AcceptsValidUtf8BoundarySequences .............................   Passed    0.00 sec
+        Start 106: WebUi.ServesThePageThatLoadsTheApi
+106/134 Test #106: WebUi.ServesThePageThatLoadsTheApi ......................................   Passed    0.02 sec
+        Start 107: WebUi.ServesTheSearchClient
+107/134 Test #107: WebUi.ServesTheSearchClient .............................................   Passed    0.02 sec
+        Start 108: WebUi.ServesTheAppWrapperWithoutAnExternalNetwork
+108/134 Test #108: WebUi.ServesTheAppWrapperWithoutAnExternalNetwork .......................   Passed    0.02 sec
+        Start 109: WebUi.ServesPinnedVueFromTheBinary
+109/134 Test #109: WebUi.ServesPinnedVueFromTheBinary ......................................   Passed    0.02 sec
+        Start 110: WebUi.ServesTheStyles
+110/134 Test #110: WebUi.ServesTheStyles ...................................................   Passed    0.01 sec
+        Start 111: WebUi.LeavesUnknownPathsToTheApi
+111/134 Test #111: WebUi.LeavesUnknownPathsToTheApi ........................................   Passed    0.01 sec
+        Start 112: SearchSocketRoute.SendsAllStagesOverTheWire
+112/134 Test #112: SearchSocketRoute.SendsAllStagesOverTheWire .............................   Passed    0.10 sec
+        Start 113: SearchSocketRoute.KeepsTheConnectionOpenAfterAnError
+113/134 Test #113: SearchSocketRoute.KeepsTheConnectionOpenAfterAnError ....................   Passed    0.05 sec
+        Start 114: SearchSocketRoute.ExpansionReachesClientBeforeSearchFinishes
+114/134 Test #114: SearchSocketRoute.ExpansionReachesClientBeforeSearchFinishes ............   Passed    0.05 sec
+        Start 115: SearchSocketRoute.ClientCanDisconnectDuringBackgroundWork
+115/134 Test #115: SearchSocketRoute.ClientCanDisconnectDuringBackgroundWork ...............   Passed    0.07 sec
+        Start 116: SearchSocketRoute.SlowExpansionDoesNotStarveHealth
+116/134 Test #116: SearchSocketRoute.SlowExpansionDoesNotStarveHealth ......................   Passed    0.22 sec
+        Start 117: SearchSocket.SendsExpansionSearchAndDoneInOrder
+117/134 Test #117: SearchSocket.SendsExpansionSearchAndDoneInOrder .........................   Passed    0.00 sec
+        Start 118: SearchSocket.SearchesTheOriginalQueryWithoutExpansion
+118/134 Test #118: SearchSocket.SearchesTheOriginalQueryWithoutExpansion ...................   Passed    0.01 sec
+        Start 119: SearchSocket.DeliversExpansionWhileKeywordSearchIsStillRunning
+119/134 Test #119: SearchSocket.DeliversExpansionWhileKeywordSearchIsStillRunning ..........   Passed    0.00 sec
+        Start 120: SearchSocket.ReportsInvalidJsonWithoutClosing
+120/134 Test #120: SearchSocket.ReportsInvalidJsonWithoutClosing ...........................   Passed    0.00 sec
+        Start 121: SearchSocket.ReportsAnEmptyQuery
+121/134 Test #121: SearchSocket.ReportsAnEmptyQuery ........................................   Passed    0.00 sec
+        Start 122: SearchSocket.ReportsAnUnbuiltIndex
+122/134 Test #122: SearchSocket.ReportsAnUnbuiltIndex ......................................   Passed    0.00 sec
+        Start 123: SearchSocket.ReportsABuildingIndex
+123/134 Test #123: SearchSocket.ReportsABuildingIndex ......................................   Passed    0.00 sec
+        Start 124: SearchSocket.HandlesAnotherQueryAfterAnError
+124/134 Test #124: SearchSocket.HandlesAnotherQueryAfterAnError ............................   Passed    0.00 sec
+        Start 125: SearchSocket.RejectsAQueryWhenThePerConnectionQueueIsFull
+125/134 Test #125: SearchSocket.RejectsAQueryWhenThePerConnectionQueueIsFull ...............   Passed    0.00 sec
+        Start 126: SearchSocket.ReportsBusyWhenThePoolQueueIsFull
+126/134 Test #126: SearchSocket.ReportsBusyWhenThePoolQueueIsFull ..........................   Passed    0.01 sec
+        Start 127: SearchSocket.StopsSendingAfterTheClientDisconnects
+127/134 Test #127: SearchSocket.StopsSendingAfterTheClientDisconnects ......................   Passed    0.01 sec
+        Start 128: SearchSocket.RejectsMessagesAfterShutdown
+128/134 Test #128: SearchSocket.RejectsMessagesAfterShutdown ...............................   Passed    0.01 sec
+        Start 129: SearchSocket.ValidationErrorWaitsForTheActiveQuery
+129/134 Test #129: SearchSocket.ValidationErrorWaitsForTheActiveQuery ......................   Passed    0.01 sec
+        Start 130: SearchSocket.KeepsMessagesOfOneConnectionInOrder
+130/134 Test #130: SearchSocket.KeepsMessagesOfOneConnectionInOrder ........................   Passed    0.01 sec
+        Start 131: ui_search_client
+131/134 Test #131: ui_search_client ........................................................   Passed    0.19 sec
+        Start 132: dataset_generator
+132/134 Test #132: dataset_generator .......................................................   Passed    0.70 sec
+        Start 133: cli_client
+133/134 Test #133: cli_client ..............................................................   Passed    3.13 sec
+        Start 134: model_preparation
+134/134 Test #134: model_preparation .......................................................   Passed    1.87 sec
+
+100% tests passed, 0 tests failed out of 134
+
+Total Test time (real) =   9.28 sec
