@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-23",
+  "kind": "manual single run, not part of E1/E2",
+  "how": "docker compose -p cwext -f docker-compose.yml -f docker-compose.external.yml up -d --no-deps server, EXTERNAL_DATASET_PATH=<repo>/data/docs, QUERY_EXPANSION=false, INDEX_THREADS=4",
+  "corpus": "Project Gutenberg books from the public deepmind-gutenberg bucket, split into ~200 KiB documents by tools/prepare_dataset.py",
+  "documents": 12061,
+  "bytes": 1955788242,
+  "threads": 4,
+  "index_time_ms": 42546,
+  "notes": "bind mount from the Windows host, cold file cache, one run; not comparable with E1 which uses a Linux named volume and a warm cache",
+  "queries": [
+    {"query": "whale", "time_ms": 62, "results": 10, "top_doc_ids": ["2489_4.txt", "2701_4.txt"]},
+    {"query": "sea captain", "time_ms": 42, "results": 10, "top_doc_ids": ["1407_1.txt", "24487_1.txt"]},
+    {"query": "love marriage", "time_ms": 35, "results": 10, "top_doc_ids": ["11248_7.txt", "26398_1.txt"]}
+  ]
+}
