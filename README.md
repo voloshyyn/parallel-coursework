@@ -58,21 +58,113 @@ docker compose exec server search --json "quantum physics"
 
 ## API
 
+Усі відповіді — JSON (`Content-Type: application/json`). Адреса за замовчуванням
+`http://localhost:8080`. Типи: `string`, `integer`, `number` (дробове),
+`boolean`, `array`, `object`.
+
 ```bash
 curl http://localhost:8080/api/health
-curl http://localhost:8080/api/ready
-curl http://localhost:8080/api/stats
-curl -X POST http://localhost:8080/api/search -H 'Content-Type: application/json' \
-  -d '{"query":"coral reef","mode":"keyword"}'
 curl -X POST http://localhost:8080/api/index -H 'Content-Type: application/json' \
   -d '{"threads":8}'
+curl -X POST http://localhost:8080/api/search -H 'Content-Type: application/json' \
+  -d '{"query":"coral reef","mode":"keyword"}'
+curl http://localhost:8080/api/stats
 ```
 
-`/api/health` повертає фіксовані `status` і `ollama`; останнє означає доступність
-Ollama та наявність вибраної моделі. `/api/ready` окремо повідомляє готовність
-індексу й помилки фонового старту. WebSocket `/ws/search` приймає `{ "query":
-"coral reef" }` і передає `query_expansion`, `keyword_search`, `done`.
-Контракт: [docs/api.md](docs/api.md).
+### `GET /api/health`
+
+Запиту немає. Відповідь `200`:
+
+| Поле | Тип | Опис |
+|---|---|---|
+| `status` | string | Завжди `"ok"` |
+| `ollama` | boolean | `true`, якщо Ollama доступна й має вибрану модель (оновлюється фоново раз на 5 с) |
+
+### `POST /api/index` — побудова індексу
+
+Запит:
+
+| Поле | Тип | Обов'язкове | Опис |
+|---|---|---|---|
+| `threads` | integer, 1–64 | ні (типово 4) | Кількість потоків власного пулу |
+
+Відповідь `200`:
+
+| Поле | Тип | Опис |
+|---|---|---|
+| `status` | string | `"ok"` |
+| `documents_indexed` | integer | Кількість проіндексованих документів |
+| `time_ms` | integer | Час побудови, мс |
+
+### `POST /api/search` — пошук
+
+Запит:
+
+| Поле | Тип | Обов'язкове | Опис |
+|---|---|---|---|
+| `query` | string | так | Непорожній текст запиту |
+| `mode` | string | так | Лише `"keyword"` |
+
+Відповідь `200`:
+
+| Поле | Тип | Опис |
+|---|---|---|
+| `results` | array of object | До 10 елементів, за спаданням `score` |
+| `results[].doc_id` | string | Ім'я файла документа |
+| `results[].score` | number | Нормована оцінка TF-IDF, (0, 1]; перший результат має `1` |
+| `results[].snippet` | string | Фрагмент тексту навколо знайденого терміна |
+| `time_ms` | integer | Час keyword-етапу, мс |
+
+### `GET /api/stats`
+
+Відповідь `200` (до першої побудови — нулі):
+
+| Поле | Тип | Опис |
+|---|---|---|
+| `documents` | integer | Кількість документів в індексі |
+| `index_build_time_ms` | integer | Час останньої успішної побудови, мс |
+| `threads_used` | integer | Потоків у цій побудові |
+
+### `GET /api/ready` — додатковий маршрут готовності
+
+| Поле | Тип | Опис |
+|---|---|---|
+| `status` | string | `"ok"` |
+| `ollama` | boolean | Як у `/api/health` |
+| `index_state` | string | `"empty"`, `"building"` або `"ready"` |
+| `search_ready` | boolean | `true`, коли пошук доступний |
+| `index_error` | string | Причина невдалої побудови або `""` |
+| `startup_state` | string | Лише в Docker: `"preparing"`, `"indexing"`, `"ready"`, `"error"` |
+| `startup_error` | string | Лише в Docker: причина помилки підготовки або `""` |
+
+### Помилки
+
+Тіло помилки: `{"status": "error", "message": string}`.
+
+| HTTP | Коли | `message` |
+|---|---|---|
+| 400 | Некоректний JSON; порожній або не рядковий `query`; `mode` не `"keyword"`; `threads` не ціле в 1–64 | `invalid JSON body`, `query must be a non-empty string`, `mode must be "keyword"`, `threads must be in 1..64` |
+| 409 | Пошук до першої побудови; пошук або повторна побудова під час побудови | `index not built`, `index is building` |
+| 404 / 405 | Невідомий маршрут / недозволений метод | текст `404 Not Found` / `405 Method Not Allowed` |
+| 500 | Внутрішня помилка (наприклад, недоступний каталог датасету) | текст помилки |
+
+### WebSocket `/ws/search`
+
+Клієнт надсилає текстове JSON-повідомлення; після `done` з'єднання лишається
+відкритим для наступного запиту.
+
+| Напрям | Повідомлення |
+|---|---|
+| Клієнт → сервер | `{"query": string}` |
+| Сервер → клієнт | `{"stage": "query_expansion", "data": {"original": string, "expanded_terms": array of string}}` |
+| Сервер → клієнт | `{"stage": "keyword_search", "data": {"results": array of object, "time_ms": integer}}` (елементи `results` — як у `/api/search`) |
+| Сервер → клієнт | `{"stage": "done"}` (без `data`) |
+| Сервер → клієнт | `{"stage": "error", "data": {"message": string}}` — замість подальших етапів; `done` після помилки не надсилається |
+
+Повідомлення `message` помилок: `invalid JSON body`, `query must be a non-empty
+string`, `index not built`, `index is building`, `server is busy`. Якщо Ollama
+недоступна, `expanded_terms` порожній, а пошук іде за оригінальним запитом.
+Докладніше: [docs/api.md](docs/api.md).
 
 ## Дані та конфігурація
 
@@ -92,6 +184,21 @@ DATASET_PROFILE=demo docker compose up --build -d
 `SEARCH_PORT` (8080), `OLLAMA_PORT` (11434).
 `QUERY_EXPANSION=false` потрібне лише для ізольованих keyword-експериментів;
 у звичайній роботі значення `true`.
+
+### Датасет: шлях і формат
+
+- **Типовий шлях:** `/data/generated/full` у контейнері `server` (named volume
+  `generated_data`); профіль `demo` — `/data/generated/demo`. Змінна `DATA_DIR`.
+- **Формат:** плоский каталог звичайних текстових файлів `*.txt` у кодуванні
+  UTF-8, один документ — один файл (у цій роботі ~200 КіБ). Файли з іншими
+  розширеннями та підкаталоги ігноруються. Ідентифікатор `doc_id` у відповідях —
+  ім'я файла (наприклад, `doc-000123.txt`).
+- **Вимоги курсової:** англомовний текст, не менше 10 000 документів.
+- **Синтетичний корпус** створюється автоматично (`tools/generate_dataset.py`,
+  зерно фіксоване, manifest із SHA-256).
+- **Справжні тексти (Project Gutenberg):** `python tools/prepare_dataset.py`
+  розрізає книги з `data/raw/train/` на файли `<book_id>_<n>.txt` у `data/docs/`;
+  підключаються через `EXTERNAL_DATASET_PATH` (нижче).
 
 Для власних .txt задати `EXTERNAL_DATASET_PATH` абсолютним шляхом та виконати:
 
