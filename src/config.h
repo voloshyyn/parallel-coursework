@@ -11,6 +11,9 @@ struct Config {
   std::string ollama_url = "http://localhost:11434";
   std::string ollama_model = "qwen2.5:1.5b";
   std::string data_dir = "/data/docs";
+  std::string startup_status_file;
+  // Disable only for isolated keyword benchmarks; normal operation uses LLM.
+  bool query_expansion = true;
 
   // Build the index from DATA_DIR right after HTTP starts, so a composed
   // deployment needs no manual POST /api/index.

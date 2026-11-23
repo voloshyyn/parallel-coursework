@@ -1,9 +1,9 @@
 #include "api.h"
 
-#include <nlohmann/json.hpp>
-
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <utility>
@@ -51,7 +51,8 @@ std::optional<std::size_t> ParseThreads(const Json& body, std::string& error) {
 
 // Parses a request body that must be a JSON object. Returns nothing when the
 // body is not valid JSON; `error` is filled in that case.
-std::optional<Json> ParseObjectBody(const std::string& body, std::string& error) {
+std::optional<Json> ParseObjectBody(const std::string& body,
+                                    std::string& error) {
   const Json parsed = Json::parse(body, nullptr, false);
   if (parsed.is_discarded() || !parsed.is_object()) {
     error = "invalid JSON body";
@@ -79,7 +80,7 @@ std::string HealthJson(bool ollama_available) {
 }
 
 std::string ReadinessJson(bool ollama_available, IndexState index_state,
-                         const std::string& index_error) {
+                          const std::string& index_error) {
   const char* state = "empty";
   switch (index_state) {
     case IndexState::kEmpty:
@@ -103,33 +104,50 @@ std::string ReadinessJson(bool ollama_available, IndexState index_state,
 }
 
 void RegisterHealthRoute(crow::SimpleApp& app, const OllamaMonitor& monitor,
-                         const IndexService* index_service) {
-  CROW_ROUTE(app, "/api/health")
-      .methods(crow::HTTPMethod::GET)([&monitor] {
-        return JsonResponse(200, Json::parse(HealthJson(monitor.IsAvailable())));
-      });
+                         const IndexService* index_service,
+                         std::string startup_status_file) {
+  CROW_ROUTE(app, "/api/health").methods(crow::HTTPMethod::GET)([&monitor] {
+    return JsonResponse(200, Json::parse(HealthJson(monitor.IsAvailable())));
+  });
   CROW_ROUTE(app, "/api/ready")
-      .methods(crow::HTTPMethod::GET)([&monitor, index_service] {
-        const IndexState state =
-            index_service ? index_service->State() : IndexState::kEmpty;
-        const std::string error =
-            index_service ? index_service->LastError() : std::string();
-        crow::response response(
-            200, ReadinessJson(monitor.IsAvailable(), state, error));
-        response.set_header("Content-Type", "application/json");
-        return response;
-      });
+      .methods(crow::HTTPMethod::GET)(
+          [&monitor, index_service, startup_status_file] {
+            const IndexState state =
+                index_service ? index_service->State() : IndexState::kEmpty;
+            const std::string error =
+                index_service ? index_service->LastError() : std::string();
+            Json body =
+                Json::parse(ReadinessJson(monitor.IsAvailable(), state, error));
+            if (!startup_status_file.empty()) {
+              // The supervisor atomically replaces this small, local status
+              // file. No user-supplied request path is opened here.
+              std::ifstream input(startup_status_file);
+              const Json startup = Json::parse(input, nullptr, false);
+              body["startup_state"] = "preparing";
+              body["startup_error"] = "";
+              if (startup.is_object()) {
+                if (startup.contains("state") && startup["state"].is_string()) {
+                  body["startup_state"] = startup["state"];
+                }
+                if (startup.contains("error") && startup["error"].is_string()) {
+                  body["startup_error"] = startup["error"];
+                }
+              }
+            }
+            crow::response response(200, body.dump());
+            response.set_header("Content-Type", "application/json");
+            return response;
+          });
 }
 
 void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
                           const SearchPipeline& pipeline) {
   CROW_ROUTE(app, "/api/index")
       .methods(crow::HTTPMethod::POST)([&index_service](
-                                             const crow::request& request) {
+                                           const crow::request& request) {
         try {
           std::string error;
-          const std::optional<Json> body =
-              ParseObjectBody(request.body, error);
+          const std::optional<Json> body = ParseObjectBody(request.body, error);
           if (!body) {
             return JsonError(400, error);
           }
@@ -141,11 +159,10 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
           if (!stats) {
             return JsonError(409, "index is building");
           }
-          return JsonResponse(200,
-                              Json{{"status", "ok"},
-                                   {"documents_indexed",
-                                    stats->documents_indexed},
-                                   {"time_ms", stats->build_time_ms}});
+          return JsonResponse(
+              200, Json{{"status", "ok"},
+                        {"documents_indexed", stats->documents_indexed},
+                        {"time_ms", stats->build_time_ms}});
         } catch (const std::exception& exception) {
           return JsonError(500, exception.what());
         }
@@ -153,11 +170,10 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
 
   CROW_ROUTE(app, "/api/search")
       .methods(crow::HTTPMethod::POST)([&index_service, &pipeline](
-                                             const crow::request& request) {
+                                           const crow::request& request) {
         try {
           std::string error;
-          const std::optional<Json> body =
-              ParseObjectBody(request.body, error);
+          const std::optional<Json> body = ParseObjectBody(request.body, error);
           if (!body) {
             return JsonError(400, error);
           }
@@ -183,9 +199,8 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
           // missing Ollama leaves the original query in place.
           const SearchOutcome outcome = pipeline.Run(*snapshot.index, query);
 
-          return JsonResponse(200,
-                              Json{{"results", HitsJson(outcome.results)},
-                                   {"time_ms", outcome.search_time_ms}});
+          return JsonResponse(200, Json{{"results", HitsJson(outcome.results)},
+                                        {"time_ms", outcome.search_time_ms}});
         } catch (const std::exception& exception) {
           return JsonError(500, exception.what());
         }
@@ -197,11 +212,10 @@ void RegisterSearchRoutes(crow::SimpleApp& app, IndexService& index_service,
         // same successful build.
         const PublishedIndex snapshot = index_service.Snapshot();
         return JsonResponse(
-            200,
-            Json{{"documents",
-                  snapshot.index ? snapshot.index->DocumentCount() : 0},
-                 {"index_build_time_ms", snapshot.stats.build_time_ms},
-                 {"threads_used", snapshot.stats.threads_used}});
+            200, Json{{"documents",
+                       snapshot.index ? snapshot.index->DocumentCount() : 0},
+                      {"index_build_time_ms", snapshot.stats.build_time_ms},
+                      {"threads_used", snapshot.stats.threads_used}});
       });
 }
 

@@ -1,11 +1,11 @@
 #include "integrations/ollama_client.h"
 
 #include <httplib.h>
-#include <nlohmann/json.hpp>
 
 #include <cctype>
 #include <cstddef>
 #include <exception>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -22,16 +22,15 @@ constexpr std::size_t kMaxExpandedTerms = 8;
 
 // Length of the UTF-8 bullet at `pos`, or zero when there is none.
 std::size_t BulletLength(std::string_view text, std::size_t pos) {
-  if (pos < text.size() && (text[pos] == '-' || text[pos] == '*' ||
-                            text[pos] == '+')) {
+  if (pos < text.size() &&
+      (text[pos] == '-' || text[pos] == '*' || text[pos] == '+')) {
     return 1;
   }
   const auto at = [&text, pos](std::size_t offset) {
     return static_cast<unsigned char>(text[pos + offset]);
   };
   if (pos + 2 < text.size() && at(0) == 0xE2U && at(1) == 0x80U &&
-      (at(2) == 0xA2U || at(2) == 0xA3U || at(2) == 0x93U ||
-       at(2) == 0x94U)) {
+      (at(2) == 0xA2U || at(2) == 0xA3U || at(2) == 0x93U || at(2) == 0x94U)) {
     return 3;  // •, ‣, –, —
   }
   if (pos + 1 < text.size() && at(0) == 0xC2U && at(1) == 0xB7U) {
@@ -52,8 +51,7 @@ bool SkipListMarker(std::string_view text, std::size_t& pos) {
 
   if (const std::size_t bullet = BulletLength(text, index); bullet != 0) {
     std::size_t after = index + bullet;
-    if (after < text.size() &&
-        (text[after] == ' ' || text[after] == '\t')) {
+    if (after < text.size() && (text[after] == ' ' || text[after] == '\t')) {
       while (after < text.size() &&
              (text[after] == ' ' || text[after] == '\t')) {
         ++after;
@@ -81,8 +79,7 @@ bool SkipListMarker(std::string_view text, std::size_t& pos) {
   if (after >= text.size() || (text[after] != ' ' && text[after] != '\t')) {
     return false;
   }
-  while (after < text.size() &&
-         (text[after] == ' ' || text[after] == '\t')) {
+  while (after < text.size() && (text[after] == ' ' || text[after] == '\t')) {
     ++after;
   }
   pos = after;
@@ -105,8 +102,7 @@ std::string StripListMarkers(std::string_view answer) {
     std::string_view line = answer.substr(line_start, line_end - line_start);
 
     std::size_t index = 0;
-    while (index < line.size() &&
-           (line[index] == ' ' || line[index] == '\t')) {
+    while (index < line.size() && (line[index] == ' ' || line[index] == '\t')) {
       ++index;
     }
     SkipListMarker(line, index);
@@ -118,8 +114,7 @@ std::string StripListMarkers(std::string_view answer) {
       }
       // A single-line list may separate items with commas: "1. whale, 2. sea".
       std::size_t next = i + 1;
-      while (next < line.size() &&
-             (line[next] == ' ' || line[next] == '\t')) {
+      while (next < line.size() && (line[next] == ' ' || line[next] == '\t')) {
         ++next;
       }
       std::size_t marker = next;
@@ -156,9 +151,8 @@ std::string BuildExpansionPrompt(std::string_view query) {
 std::vector<std::string> ParseExpandedTerms(std::string_view answer,
                                             std::string_view query) {
   std::unordered_set<std::string> seen;
-  detail::ForEachToken(query, [&seen](const std::string& token) {
-    seen.insert(token);
-  });
+  detail::ForEachToken(
+      query, [&seen](const std::string& token) { seen.insert(token); });
 
   const std::string cleaned = StripListMarkers(answer);
   std::vector<std::string> terms;
@@ -184,7 +178,7 @@ OllamaClient::OllamaClient(std::string base_url,
       timeout_(timeout),
       generation_timeout_(generation_timeout) {}
 
-bool OllamaClient::IsAvailable() const {
+bool OllamaClient::IsAvailable(std::string_view model) const {
   try {
     httplib::Client client(base_url_);
     client.set_connection_timeout(timeout_);
@@ -193,7 +187,29 @@ bool OllamaClient::IsAvailable() const {
     client.set_max_timeout(timeout_);
 
     const httplib::Result result = client.Get("/api/tags");
-    return result && result->status == 200;
+    if (!result || result->status != 200) {
+      return false;
+    }
+    if (model.empty()) {
+      return true;
+    }
+    const auto body = nlohmann::json::parse(result->body, nullptr, false);
+    if (!body.is_object() || !body.contains("models") ||
+        !body["models"].is_array()) {
+      return false;
+    }
+    for (const auto& entry : body["models"]) {
+      if (!entry.is_object()) {
+        continue;
+      }
+      for (const char* key : {"name", "model"}) {
+        if (entry.contains(key) && entry[key].is_string() &&
+            entry[key].get<std::string>() == model) {
+          return true;
+        }
+      }
+    }
+    return false;
   } catch (const std::exception&) {
     return false;
   }
@@ -222,8 +238,8 @@ std::vector<std::string> OllamaClient::ExpandQuery(
         // Synonyms should be reproducible, not creative.
         {"options", {{"temperature", 0}}},
     };
-    const httplib::Result result = client.Post(
-        "/api/generate", request.dump(), "application/json");
+    const httplib::Result result =
+        client.Post("/api/generate", request.dump(), "application/json");
     if (!result || result->status != 200) {
       return {};
     }

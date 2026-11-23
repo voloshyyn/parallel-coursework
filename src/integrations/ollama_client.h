@@ -19,8 +19,8 @@ class OllamaClient {
       std::chrono::milliseconds generation_timeout =
           std::chrono::milliseconds(5000));
 
-  // Returns true when the Ollama server answers GET /api/tags with 200.
-  bool IsAvailable() const;
+  // With a model, also checks that the selected model exists in /api/tags.
+  bool IsAvailable(std::string_view model = {}) const;
 
   // Asks `model` to expand `query` into synonyms and related keywords and
   // returns their tokens: lowercased, unique, without the query's own terms,

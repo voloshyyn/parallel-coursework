@@ -1,47 +1,58 @@
+x-search-image: &search-image
+  image: coursework-search:local
+  build:
+    context: .
+    dockerfile: Dockerfile
+
 services:
   server:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *search-image
+    stop_grace_period: 30s
     ports:
-      - "8080:8080"
+      - "${SEARCH_PORT:-8080}:8080"
     environment:
       PORT: "8080"
-      # The entrypoint generates the corpus here on first start and reuses it
-      # afterwards via manifest.json.
       DATA_DIR: /data/generated/${DATASET_PROFILE:-full}
       DATASET_PROFILE: ${DATASET_PROFILE:-full}
-      # Ollama is optional (profile `llm`). Without it expansion falls back to
-      # the original query and /api/health reports "ollama": false.
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
       AUTO_INDEX: "true"
       INDEX_THREADS: ${INDEX_THREADS:-4}
+      QUERY_EXPANSION: ${QUERY_EXPANSION:-true}
       SEARCH_WORKERS: ${SEARCH_WORKERS:-4}
       SEARCH_TASK_QUEUE: ${SEARCH_TASK_QUEUE:-64}
       SEARCH_CONNECTION_QUEUE: ${SEARCH_CONNECTION_QUEUE:-4}
     volumes:
       - generated_data:/data/generated
+    depends_on:
+      ollama:
+        condition: service_started
     healthcheck:
-      # The server answers 200 before the index is ready; poll until it is up.
-      # start_period covers the first corpus generation, which can take minutes
-      # for the full profile.
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 30
-      start_period: 600s
+      retries: 10
+      start_period: 10s
 
-  # Optional local LLM for query expansion:
-  #   docker compose --profile llm up
-  # Model download happens separately, see docs/deployment.md.
   ollama:
     image: ollama/ollama:0.40.10
-    profiles: ["llm"]
+    environment:
+      OLLAMA_KEEP_ALIVE: 24h
     ports:
-      - "11434:11434"
+      - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama_models:/root/.ollama
+
+  model-init:
+    <<: *search-image
+    entrypoint: ["python3", "/app/tools/prepare_model.py"]
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+    depends_on:
+      ollama:
+        condition: service_started
+    restart: on-failure:3
 
 volumes:
   generated_data:

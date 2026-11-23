@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 #include "api.h"
 #include "config.h"
@@ -21,8 +22,9 @@ int main() {
   const search::OllamaClient ollama(config.ollama_url);
 
   // Health answers from a cached flag, so Ollama is probed in the background.
-  search::OllamaMonitor monitor([&ollama] { return ollama.IsAvailable(); },
-                                std::chrono::seconds(5));
+  search::OllamaMonitor monitor(
+      [&ollama, &config] { return ollama.IsAvailable(config.ollama_model); },
+      std::chrono::seconds(5));
   monitor.Start();
 
   search::IndexService index_service(config.data_dir);
@@ -30,8 +32,10 @@ int main() {
   // Query expansion is best effort: an empty term list means the search runs
   // on the original query.
   const search::SearchPipeline pipeline(
-      engine, [&ollama, model = config.ollama_model](std::string_view query) {
-        return ollama.ExpandQuery(query, model);
+      engine, [&ollama, model = config.ollama_model,
+               enabled = config.query_expansion](std::string_view query) {
+        return enabled ? ollama.ExpandQuery(query, model)
+                       : std::vector<std::string>{};
       });
 
   search::SearchSocketOptions socket_options;
@@ -43,7 +47,8 @@ int main() {
 
   crow::SimpleApp app;
   search::RegisterUiRoutes(app);
-  search::RegisterHealthRoute(app, monitor, &index_service);
+  search::RegisterHealthRoute(app, monitor, &index_service,
+                              config.startup_status_file);
   search::RegisterSearchRoutes(app, index_service, pipeline);
   search::RegisterSearchSocketRoute(app, search_socket);
 

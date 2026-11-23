@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM ubuntu:24.04 AS build
+FROM ubuntu:24.04 AS build-dependencies
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -12,21 +12,27 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
+
+FROM build-dependencies AS build
 COPY CMakeLists.txt ./
 COPY src ./src
 COPY web ./web
 
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TSAN=OFF -DBUILD_TESTING=OFF \
-    && cmake --build build --parallel "$(nproc)"
+    && cmake --build build --parallel 4
 
 # Reproducible verification: docker build --target test -t coursework-tests .
-FROM build AS test
+FROM build-dependencies AS test
+ARG ENABLE_TSAN=OFF
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 nodejs \
     && rm -rf /var/lib/apt/lists/*
+COPY CMakeLists.txt ./
+COPY src ./src
+COPY web ./web
 COPY tests ./tests
 COPY tools ./tools
-RUN cmake -S . -B build -DBUILD_TESTING=ON \
+RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TSAN=${ENABLE_TSAN} -DBUILD_TESTING=ON \
     && cmake --build build --parallel 4
 CMD ["ctest", "--test-dir", "build", "--output-on-failure"]
 
@@ -42,7 +48,9 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=build /src/build/search_server /app/search_server
+COPY --from=build /src/build/search /usr/local/bin/search
 COPY tools/generate_dataset.py /app/tools/generate_dataset.py
+COPY tools/start_server.py tools/prepare_model.py /app/tools/
 COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 COPY web/vue.LICENSE.txt /app/licenses/vue.LICENSE.txt
 RUN chmod 0755 /app/docker-entrypoint.sh

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <string>
-
 #include <crow.h>
+
+#include <string>
 
 #include "integrations/ollama_monitor.h"
 #include "services/index_service.h"
@@ -18,7 +18,8 @@ std::string HealthJson(bool ollama_available);
 // cached Ollama state and always answers 200. Also registers /api/ready,
 // a separate readiness extension used by the UI during automatic indexing.
 void RegisterHealthRoute(crow::SimpleApp& app, const OllamaMonitor& monitor,
-                         const IndexService* index_service = nullptr);
+                         const IndexService* index_service = nullptr,
+                         std::string startup_status_file = {});
 
 // Registers POST /api/index, POST /api/search and GET /api/stats. Handlers only
 // validate the request and delegate to IndexService and SearchPipeline.

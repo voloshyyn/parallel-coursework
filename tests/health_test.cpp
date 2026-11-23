@@ -1,11 +1,10 @@
 #include <gtest/gtest.h>
-
 #include <httplib.h>
-#include <nlohmann/json.hpp>
 
 #include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <thread>
 
@@ -26,9 +25,11 @@ using search::test_support::TempDir;
 class HealthServer {
  public:
   HealthServer(search::OllamaMonitor& monitor, int port,
-               const IndexService* index_service = nullptr)
+               const IndexService* index_service = nullptr,
+               const std::string& startup_status_file = {})
       : port_(port) {
-    search::RegisterHealthRoute(app_, monitor, index_service);
+    search::RegisterHealthRoute(app_, monitor, index_service,
+                                startup_status_file);
     app_.loglevel(crow::LogLevel::Critical);
     app_.bindaddr("127.0.0.1").port(port_).multithreaded();
     worker_ = std::thread([this] { app_.run(); });
@@ -157,10 +158,9 @@ TEST(HealthEndpoint, ReportsABuildingIndex) {
   dir.Write("a.txt", "alpha");
   BuildGate gate("whale");
   gate.Hold("whale");
-  IndexService service(dir.path().string(),
-                       [&gate](const std::filesystem::path& path) {
-                         return gate.Read(path);
-                       });
+  IndexService service(
+      dir.path().string(),
+      [&gate](const std::filesystem::path& path) { return gate.Read(path); });
   HealthServer server(monitor, 18084, &service);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
@@ -177,6 +177,27 @@ TEST(HealthEndpoint, ReportsABuildingIndex) {
   EXPECT_NE(std::string::npos,
             building->body.find("\"index_state\":\"building\""));
   EXPECT_NE(std::string::npos, building->body.find("\"search_ready\":false"));
+}
+
+TEST(HealthEndpoint, ExposesPreparationFailureWithoutChangingHealthContract) {
+  search::OllamaMonitor monitor([] { return false; }, 5s);
+  TempDir dir;
+  dir.Write("startup.json",
+            R"({"state":"error","error":"dataset unavailable"})");
+  IndexService service(dir.path().string());
+  HealthServer server(monitor, 18085, &service,
+                      (dir.path() / "startup.json").string());
+  ASSERT_TRUE(server.WaitUntilReady());
+  httplib::Client client = MakeClient(server.port());
+  const auto ready = client.Get("/api/ready");
+  ASSERT_TRUE(ready);
+  const auto body = nlohmann::json::parse(ready->body);
+  EXPECT_EQ("error", body.at("startup_state"));
+  EXPECT_EQ("dataset unavailable", body.at("startup_error"));
+  EXPECT_FALSE(body.at("search_ready").get<bool>());
+  const auto health = client.Get("/api/health");
+  ASSERT_TRUE(health);
+  EXPECT_EQ(2U, nlohmann::json::parse(health->body).size());
 }
 
 TEST(OllamaMonitor, PublishesProbeResult) {

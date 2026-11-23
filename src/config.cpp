@@ -69,6 +69,8 @@ Config Config::FromEnvironment() {
   config.ollama_url = ReadEnv("OLLAMA_URL", config.ollama_url);
   config.ollama_model = ReadEnv("OLLAMA_MODEL", config.ollama_model);
   config.data_dir = ReadEnv("DATA_DIR", config.data_dir);
+  config.startup_status_file = ReadEnv("STARTUP_STATUS_FILE", "");
+  config.query_expansion = ReadBool("QUERY_EXPANSION", true);
   config.auto_index = ReadBool("AUTO_INDEX", config.auto_index);
   config.index_threads =
       ReadPositive("INDEX_THREADS", config.index_threads, 64);

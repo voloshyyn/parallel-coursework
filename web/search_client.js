@@ -393,6 +393,9 @@
         typeof body.index_state === 'string' ? body.index_state : 'ready';
       state.indexError =
         typeof body.index_error === 'string' ? body.index_error : '';
+      if (typeof body.startup_error === 'string' && body.startup_error) {
+        state.indexError = body.startup_error;
+      }
       if (typeof body.search_ready === 'boolean') {
         state.searchReady = body.search_ready;
       } else {

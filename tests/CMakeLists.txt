@@ -59,6 +59,12 @@ if(PYTHON3_EXECUTABLE)
     COMMAND ${PYTHON3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_generate_dataset.py)
   set_tests_properties(dataset_generator PROPERTIES TIMEOUT 300)
+  add_test(NAME cli_client COMMAND ${PYTHON3_EXECUTABLE}
+           ${CMAKE_CURRENT_SOURCE_DIR}/test_cli.py --binary $<TARGET_FILE:search>)
+  set_tests_properties(cli_client PROPERTIES TIMEOUT 120)
+  add_test(NAME model_preparation COMMAND ${PYTHON3_EXECUTABLE}
+           ${CMAKE_CURRENT_SOURCE_DIR}/test_prepare_model.py)
+  set_tests_properties(model_preparation PROPERTIES TIMEOUT 120)
 else()
   message(STATUS "Python 3 not found: skipping dataset generator tests")
 endif()

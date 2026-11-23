@@ -500,6 +500,19 @@ test('the no-Vue fallback removes cloak and shows a visible message', () => {
   assert.match(root.textContent, /Vue/);
 });
 
+test('preparation failure is visible while the HTTP server stays available', async () => {
+  const client = makeClient({
+    fetchImpl: async () => ({ ok: true, json: async () => ({
+      status: 'ok', ollama: false, index_state: 'empty', search_ready: false,
+      startup_state: 'error', startup_error: 'dataset preparation failed',
+    }) }),
+  });
+  await client.checkHealth();
+  assert.equal(client.state.serverAvailable, true);
+  assert.equal(client.state.searchReady, false);
+  assert.match(client.state.indexError, /dataset preparation failed/);
+});
+
 test('the browser fetch receiver remains the global object', async () => {
   const vm = require('node:vm');
   const sandbox = vm.createContext({ setTimeout, clearTimeout, AbortController });
