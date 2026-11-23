@@ -1,0 +1,26 @@
+@startuml
+!pragma layout smetana
+left to right direction
+skinparam defaultFontName Arial
+skinparam shadowing false
+actor Operator
+actor "CLI user" as CLI
+actor "Web user" as Web
+actor "Ollama HTTP service" as LLM
+rectangle "Parallel search system" {
+  usecase "UC1: Build / rebuild index\nPOST /api/index" as Index
+  usecase "UC2: REST search\nPOST /api/search" as Rest
+  usecase "UC3: Stream search stages\n/ws/search" as WS
+  usecase "UC4: Read health and statistics\nGET /api/health, /api/stats" as Health
+}
+Operator --> Index
+Operator --> Health
+CLI --> Rest
+Web --> WS
+LLM -- Rest : query expansion
+LLM -- WS : query expansion
+note bottom of Index
+  Automatic startup also prepares the local corpus
+  and invokes the same index endpoint.
+end note
+@enduml

@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+actor "CLI user" as User
+participant "search CLI" as CLI
+participant "REST API" as API
+participant IndexService as Index
+participant SearchPipeline as Pipeline
+participant OllamaClient as LLM
+participant Ollama
+participant SearchEngine as Engine
+User -> CLI : search "coral reef"
+CLI -> API : POST /api/search {query, mode: keyword}
+API -> Index : Snapshot()
+Index --> API : shared_ptr<const InvertedIndex>
+API -> Pipeline : Run(snapshot, query)
+Pipeline -> LLM : ExpandQuery(query, model)
+LLM -> Ollama : POST /api/generate
+alt response before total deadline
+  Ollama --> LLM : keywords / synonyms
+  LLM --> Pipeline : normalized unique terms
+else unavailable / timeout / invalid response
+  LLM --> Pipeline : empty terms (original query retained)
+end
+Pipeline -> Engine : Search(index, original + expanded terms)
+Engine --> Pipeline : ranked hits + snippets
+Pipeline --> API : SearchOutcome
+API --> CLI : JSON {results, time_ms}
+CLI --> User : doc_id, score, snippet (or --json)
+@enduml

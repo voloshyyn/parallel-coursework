@@ -1,0 +1,29 @@
+@startuml
+!pragma layout smetana
+skinparam defaultFontName Arial
+skinparam shadowing false
+actor Browser
+actor "search CLI" as CLI
+node "Docker host" {
+  node "Compose network" {
+    node "server :8080\ncoursework-search:local\nuid 10001 (non-root)" as Server {
+      artifact "C++ backend + embedded Vue\nOwn index and thread pools (RAM)\nPython supervisor + corpus generator" as App
+    }
+    node "ollama :11434\nollama/ollama:0.40.10" as Ollama
+    node "model-init\none-shot Python process" as Init
+  }
+  database "generated_data\n12 000 .txt, >=2 GiB\nmanifest.json" as Data
+  database "ollama_models\nqwen2.5:1.5b" as Models
+}
+Browser --> App
+CLI --> App
+App --> Ollama : generate / tags
+Init --> Ollama : pull + warm
+App --> Data : prepare / read
+Ollama --> Models : cache
+note bottom of Server
+  HTTP starts before preparation.
+  Corpus and index are prepared in background.
+  Dataset generation uses no network.
+end note
+@enduml

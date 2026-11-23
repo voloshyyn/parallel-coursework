@@ -1,0 +1,44 @@
+@startuml
+!pragma layout smetana
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+class SearchSocketService {
+  - pool_: ThreadPool
+  - sessions_: unordered_map
+  + OnOpen(connection)
+  + OnMessage(connection, message)
+  + OnClose(connection)
+  + Shutdown()
+}
+class SearchPipeline {
+  - expander_: QueryExpander
+  + Run(index, query, observer)
+}
+class SearchEngine {
+  + Search(index, query)
+  - Snippet(id, terms)
+}
+class OllamaClient {
+  + IsAvailable(model)
+  + ExpandQuery(query, model)
+}
+class OllamaMonitor {
+  + Start()
+  + Stop()
+  + IsAvailable()
+}
+class ThreadPool
+class IndexService
+class "API routes" as API
+SearchSocketService *-- ThreadPool
+SearchSocketService --> IndexService
+SearchSocketService --> SearchPipeline
+SearchPipeline --> SearchEngine
+SearchPipeline ..> OllamaClient : expander
+OllamaMonitor ..> OllamaClient : probe
+API --> SearchSocketService
+API --> IndexService
+API --> SearchPipeline
+API --> OllamaMonitor
+@enduml

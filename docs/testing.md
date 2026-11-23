@@ -114,18 +114,30 @@ docker run --rm --security-opt seccomp=unconfined \
     set -euo pipefail
     apt-get update -qq
     apt-get install -y -qq --no-install-recommends \
-      build-essential cmake git ca-certificates libasio-dev
+      build-essential cmake git ca-certificates libasio-dev python3 nodejs
     cmake -S /src -B /tmp/build -DCMAKE_BUILD_TYPE=Debug \
       -DENABLE_TSAN=ON -DBUILD_TESTING=ON
     cmake --build /tmp/build -j
-    setarch -R ctest --test-dir /tmp/build --output-on-failure
+    TSAN_OPTIONS=halt_on_error=1 setarch -R ctest --test-dir /tmp/build --output-on-failure
   '
 ```
 
 ### Smoke-тест
 
-`scripts/smoke.sh` чекає, доки `GET /api/health` не поверне 200, будує індекс
-(`POST /api/index`, `threads: 2`), перевіряє `GET /api/stats` і виконує
+`scripts/smoke.sh` чекає HTTP і `search_ready`, перевіряє `GET /api/stats` і виконує
 `POST /api/search`. Скрипт друкує лише коди, кількість документів/результатів і
 `time_ms`, без тексту документів. Час на побудову обмежений
-`BUILD_TIMEOUT_SECONDS` (типово 900 с).
+`BUILD_TIMEOUT_SECONDS` (типово 900 с). Явна перебудова з `threads:2`
+виконується лише за `REBUILD_INDEX=true`.
+
+Той самий Docker target підтримує повний TSan-прогін:
+
+```bash
+docker build --target test --build-arg ENABLE_TSAN=ON -t coursework-tsan .
+docker run --rm --security-opt seccomp=unconfined -e TSAN_OPTIONS=halt_on_error=1 \
+  coursework-tsan setarch x86_64 -R ctest --test-dir build --output-on-failure
+```
+
+Нові поведінкові suites: `cli_client` (6 сценаріїв справжнього executable),
+`model_preparation` (перше завантаження, кеш, помилка), startup-помилка у
+health і Node-клієнті. CTest містить 134 перевірки; Node suite — 16 тестів.

@@ -1,116 +1,149 @@
-# Пошукова система з паралельною побудовою індексу та LLM
+# Пошукова система з паралельними обчисленнями та LLM
 
-Курсова робота з «Технологій паралельних обчислень»: C++20, Crow, шардований
-інвертований індекс, **власний ThreadPool**, пошук TF-IDF та Ollama.
-Web UI використовує локально поставлений Vue 3.5.13; інтернет під час роботи
-інтерфейсу та підготовки датасету не потрібен.
+Курсова робота: C++20, **власні ThreadPool та шардований InvertedIndex**, REST,
+WebSocket, C++ CLI, локальний Vue та Ollama. Готові бібліотечні реалізації
+пулу потоків або пошукового індексу не використовуються.
 
-## Запуск із чистого клону
+## Запуск
 
-Встановіть Docker з Compose, клонуйте репозиторій і виконайте в його каталозі:
+Потрібен Docker з Compose. У каталозі клонованого репозиторію:
+
+```bash
+docker compose up
+```
+
+Або у фоні з явним оновленням образу після зміни коду:
 
 ```bash
 docker compose up --build -d
 ```
 
-Відкрийте http://localhost:8080. За замовчуванням створюється синтетичний корпус:
-12 000 документів, щонайменше 2 GiB справжнього тексту. Генератор використовує
-лише Python stdlib, фіксований seed та локальний словник; нічого не завантажує.
-Індексація починається автоматично, викликати `/api/index` вручну не потрібно.
-Генерація відбувається до запуску HTTP; її прогрес видно в `docker compose logs -f server`.
-Після запуску HTTP сторінка показує стан індексації та сама дозволяє пошук,
-коли індекс готовий. Відсутність Ollama не заважає keyword-пошуку.
+Відкрити [http://localhost:8080](http://localhost:8080).
+За замовчуванням запускаються `server`, `ollama` і одноразовий `model-init`.
+Останній автоматично завантажує відсутню `qwen2.5:1.5b` і прогріває її.
+Модель та корпус зберігаються в постійних named volumes.
 
-Перший старт не миттєвий: потрібні генерація та індексація. Початкова збірка
-образу й завантаження бібліотек можуть потребувати мережу. Подальша робота
-пошуку та підготовка корпусу від неї не залежать.
-
-Для швидкої демонстрації можна вибрати невеликий корпус:
+Сторінка доступна **до завершення підготовки корпусу**. Сервер у фоні створює
+12 000 англомовних синтетичних документів обсягом >=2 GiB, потім автоматично
+індексує їх. UI сам дозволяє пошук після готовності. Помилка підготовки видима
+на сторінці та в `/api/ready`; прогрес генерації — в логах:
 
 ```bash
-# Bash
-DATASET_PROFILE=demo docker compose up --build -d
+docker compose logs -f server model-init
 ```
 
-```powershell
-# PowerShell
-$env:DATASET_PROFILE = 'demo'
-docker compose up --build -d
+Генерація текстів не потребує мережі, pip або скачування книг. Початкові образи,
+C++-залежності та модель потребують мережі. Пошук по повному корпусу не може
+завершити підготовку миттєво; її час залежить від CPU й диска. Подальші запуски
+повторно використовують тексти та модель; RAM-індекс перебудовується.
+За timeout/недоступності LLM пошук використовує початковий запит.
+
+## Консольний клієнт
+
+C++ клієнт уже входить у runtime-образ:
+
+```bash
+docker compose exec server search "coral reef"
+docker compose exec server search --json "quantum physics"
 ```
 
-Demo має 60 документів і **не виконує вимогу повного обсягу**. Full та demo
-зберігаються окремо в named volume (`/data/generated/full` і `.../demo`).
-Повторний запуск перевіряє manifest і використовує файли повторно, але індекс
-у пам'яті будується заново. Невідомий або пошкоджений каталог не перезаписується.
+Він друкує `doc_id`, `score`, `snippet` та час keyword-етапу.
+Після локального збирання: `./build/search "coral reef"`.
+Адреса: `--server http://localhost:8080` або `SEARCH_URL`.
+Коди завершення: 0 — успіх, включно з порожнім результатом; 1 — помилка
+з'єднання/сервера/протоколу; 2 — неправильні аргументи. `--help` показує довідку.
 
-## Перевірка та API
+Відомі запити full-корпусу: `coral reef`, `quantum physics`, `ancient rome`,
+`deep ocean whale`, `galaxy telescope`. Це синтетичні тексти, не справжні книги.
+
+## API
 
 ```bash
 curl http://localhost:8080/api/health
-# {"status":"ok","ollama":false}
 curl http://localhost:8080/api/ready
-# Додатковий маршрут: search_ready, index_state, index_error
 curl http://localhost:8080/api/stats
-curl -X POST http://localhost:8080/api/search \
-  -H 'Content-Type: application/json' -d '{"query":"coral reef","mode":"keyword"}'
-./scripts/smoke.sh
+curl -X POST http://localhost:8080/api/search -H 'Content-Type: application/json' \
+  -d '{"query":"coral reef","mode":"keyword"}'
+curl -X POST http://localhost:8080/api/index -H 'Content-Type: application/json' \
+  -d '{"threads":8}'
 ```
 
-Smoke чекає автоматичної готовності; для окремої перевірки ручної перебудови
-встановіть `REBUILD_INDEX=true`. WebSocket `/ws/search` надсилає
-`query_expansion` одразу після розширення, потім `keyword_search` і `done`.
-Повний контракт — [docs/api.md](docs/api.md).
+`/api/health` повертає фіксовані `status` і `ollama`; останнє означає доступність
+Ollama та наявність вибраної моделі. `/api/ready` окремо повідомляє готовність
+індексу й помилки фонового старту. WebSocket `/ws/search` приймає `{ "query":
+"coral reef" }` і передає `query_expansion`, `keyword_search`, `done`.
+Контракт: [docs/api.md](docs/api.md).
 
-## Ollama (необов'язково)
+## Дані та конфігурація
+
+`full` — типовий профіль для вимог курсової: 12 000 .txt, >=2 GiB.
+`demo` — 60 малих документів лише для швидкої демонстрації; не для атестації
+обсягу та вимірювань. Зміна профілю не перезаписує інший корпус.
 
 ```bash
-docker compose --profile llm up -d
-docker compose exec ollama ollama pull qwen2.5:1.5b
+DATASET_PROFILE=demo docker compose up --build -d
 ```
 
-Модель завантажується окремо один раз у том `ollama_models`. За недоступності
-моделі/сервера або deadline генерації 5 с пошук використовує вихідний запит.
-`ollama` у health означає доступність сервера Ollama, а не наявність моделі.
+У PowerShell: `$env:DATASET_PROFILE='demo'`, потім звичайна команда Compose.
+Для повернення full: `Remove-Item Env:DATASET_PROFILE`.
 
-## Власний датасет
+Налаштування Compose: `INDEX_THREADS` (типово 4), `SEARCH_WORKERS` (4),
+`SEARCH_TASK_QUEUE` (64), `SEARCH_CONNECTION_QUEUE` (4), `OLLAMA_MODEL`,
+`SEARCH_PORT` (8080), `OLLAMA_PORT` (11434).
+`QUERY_EXPANSION=false` потрібне лише для ізольованих keyword-експериментів;
+у звичайній роботі значення `true`.
 
-Існуючий Gutenberg-корпус залишається альтернативою. Його не змінює генератор.
-Монтуйте каталог `.txt` read-only через `docker-compose.external.yml`, задавши
-`EXTERNAL_DATASET_PATH` (докладно — [docs/deployment.md](docs/deployment.md)).
-`tools/prepare_dataset.py` збережено для наявних 5 322 сирих книг; він не потрібен
-для стандартного запуску. У git не потрапляють корпуси, моделі та збірки.
-
-## Збирання й тести
-
-Локально потрібні CMake 3.22+, GCC 13+/Clang 16+, Asio, Python 3.10+ і Node 18+.
+Для власних .txt задати `EXTERNAL_DATASET_PATH` абсолютним шляхом та виконати:
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+docker compose -f docker-compose.yml -f docker-compose.external.yml up --build -d
+```
+
+Каталог монтується read-only, генерація вимикається. Подробиці:
+[docs/deployment.md](docs/deployment.md).
+
+## Збирання та перевірки
+
+Без Docker потрібні C++20-компілятор, CMake >=3.22, Asio та Git:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
 ```
 
-Повний тестовий образ включає також JavaScript- і Python-перевірки:
+CMake отримує зафіксовані версії Crow, cpp-httplib, nlohmann/json і GoogleTest.
+Node та Python потрібні для відповідних suites. Єдиний стиль C++ задано
+`.clang-format` (Google).
+
+Відтворювана перевірка у Linux з усіма залежностями тестів:
 
 ```bash
 docker build --target test -t coursework-tests .
 docker run --rm coursework-tests
 ```
 
-ThreadSanitizer: `-DENABLE_TSAN=ON`, докладно — [docs/testing.md](docs/testing.md).
-Для прямого запуску C++-бінарника спочатку створіть корпус генератором і задайте
-`DATA_DIR`; `AUTO_INDEX=true` за замовчуванням.
+Свіжий протокол: [docs/verification.md](docs/verification.md).
+Команди ThreadSanitizer та опис перевірок: [docs/testing.md](docs/testing.md).
 
-## Реалізація та конфігурація
+## Результати й пояснювальна записка
 
-`src/core/thread_pool.*` створює свої `std::thread`, чергу задач, mutex і
-condition_variable; готових сторонніх пулів немає. Цей пул використовується
-індексатором і фоновим WebSocket-пошуком. Закриття чекає прийняті задачі;
-частковий збій створення потоків обробляється без terminate.
+- [PDF-звіт українською](output/pdf/coursework_report.pdf).
+- [UML: PlantUML-джерела та PNG](docs/diagrams/).
+- [Архітектура](docs/architecture.md).
+- [Методика та відтворення експериментів](bench/README.md).
+- [Сирі вимірювання й параметри середовища](bench/results/).
+- [Графіки PDF, SVG, PNG](bench/plots/).
+- [Результати та аналіз масштабування](docs/experiments.md).
 
-Налаштування: `PORT`, `DATA_DIR`, `AUTO_INDEX`, `INDEX_THREADS` (1..64),
-`SEARCH_WORKERS` (1..64), `SEARCH_TASK_QUEUE`, `SEARCH_CONNECTION_QUEUE`,
-`OLLAMA_URL`, `OLLAMA_MODEL`. У Compose також є `DATASET_PROFILE` (`full`/`demo`).
+Для регенерації графіків і звіту потрібні Python, `reportlab` та шрифт Arial
+або DejaVu Sans; `pypdfium2` додатково створює PNG графіків:
 
-Документація: [архітектура](docs/architecture.md), [розгортання](docs/deployment.md),
-[тести](docs/testing.md), [експерименти](docs/experiments.md), [UI](docs/ui.md).
+```bash
+python tools/plot_results.py
+python tools/build_report.py --author "Andrii Voloshyn"
+```
+
+Параметр `--group` додає групу на титульний лист. Звіт читає CSV та фактичний
+протокол перевірки; числа не підставляються вручну. Код, UML, звіт і результати
+зберігаються в Git; корпуси, моделі та програмні build-артефакти — поза Git.

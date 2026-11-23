@@ -1,0 +1,38 @@
+@startuml
+!pragma layout smetana
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+class IndexService {
+  - state_mutex_: mutex
+  - published_: PublishedIndex
+  + Build(threads): optional<BuildStats>
+  + Snapshot(): PublishedIndex
+  + State(): IndexState
+}
+class InvertedIndex {
+  - shards_: vector<unique_ptr<Shard>>
+  - documents_mutex_: mutex
+  + AddDocument(id, text): DocId
+  + Lookup(term): vector<Posting>
+}
+class Shard {
+  + mutex: shared_mutex
+  + postings: unordered_map<term, vector<Posting>>
+}
+class ThreadPool {
+  - workers_: vector<thread>
+  - tasks_: deque<function>
+  - mutex_: mutex
+  - has_task_: condition_variable
+  + Submit(task): bool
+  + Shutdown(): void
+}
+IndexService o-- InvertedIndex : published snapshot
+IndexService ..> ThreadPool : creates per Build
+InvertedIndex *-- Shard
+note bottom of ThreadPool
+  Own worker threads and task queue.
+  No external executor / ready-made pool.
+end note
+@enduml

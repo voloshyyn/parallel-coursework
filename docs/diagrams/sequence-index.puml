@@ -1,0 +1,31 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+actor Operator
+participant "REST API" as API
+participant IndexService as Service
+participant "Own ThreadPool" as Pool
+participant InvertedIndex as Index
+database "Text files" as Files
+Operator -> API : POST /api/index {threads: p}
+API -> Service : Build(p)
+Service -> Service : set building under state_mutex
+alt a build is already active
+  Service --> API : no result
+  API --> Operator : HTTP 409
+else new generation
+  Service -> Files : list and sort .txt files
+  Service -> Pool : create p workers; Submit per file
+  loop tasks executed concurrently by p workers
+    Pool -> Files : read one document
+    Files --> Pool : text
+    Pool -> Index : AddDocument(id, text)
+    Index -> Index : tokenize outside shared locks
+    Index -> Index : reserve metadata; lock one shard at a time
+  end
+  Service -> Pool : Shutdown / join all workers
+  Service -> Service : publish index + stats atomically
+  Service --> API : BuildStats
+  API --> Operator : HTTP 200, documents_indexed, time_ms
+end
+@enduml

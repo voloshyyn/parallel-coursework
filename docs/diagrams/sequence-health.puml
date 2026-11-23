@@ -1,0 +1,29 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+actor Operator
+participant "API routes" as API
+participant OllamaMonitor as Monitor
+participant OllamaClient as LLM
+participant Ollama
+participant IndexService as Index
+database "Atomic startup status file" as Status
+loop background every 5 seconds
+  Monitor -> LLM : IsAvailable(selected model)
+  LLM -> Ollama : GET /api/tags
+  Ollama --> LLM : installed model list
+  LLM --> Monitor : cached availability
+end
+Operator -> API : GET /api/health
+API -> Monitor : IsAvailable() (cached, no network wait)
+Monitor --> API : bool
+API --> Operator : {status: ok, ollama: bool}
+Operator -> API : GET /api/stats
+API -> Index : Snapshot()
+Index --> API : one index generation + BuildStats
+API --> Operator : {documents, index_build_time_ms, threads_used}
+Operator -> API : GET /api/ready (extension)
+API -> Index : State(), LastError()
+API -> Status : read preparation state / failure
+API --> Operator : index_state, search_ready, startup_state, errors
+@enduml

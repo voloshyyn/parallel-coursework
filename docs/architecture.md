@@ -185,11 +185,23 @@ Core (ThreadPool, InvertedIndex, Tokenizer)      Integrations (OllamaClient)
   снипет читається з файлу за `doc_id` (до 10 читань на запит).
 
 ## UML (вимога для атестації і звіту)
-Діаграми зберігати в `docs/diagrams/` (PlantUML або mermaid + експорт у PNG):
-- [ ] Use case
-- [ ] Class
-- [ ] Sequence — окрема для кожного use case (побудова індексу, REST-пошук, WebSocket-пошук)
-- [ ] Deployment (топологія docker compose: `server` + `ollama`) або layer
+Діаграми в `docs/diagrams/`: редаговані PlantUML-джерела та PNG.
+- [x] Use case: чотири основні сценарії.
+- [x] Class: ядро та сервісний шар окремими схемами.
+- [x] Sequence: побудова індексу, REST-пошук, WebSocket-пошук, стан/статистика.
+- [x] Deployment: `server`, `ollama`, одноразовий `model-init`, два named volumes.
+
+## Фоновий старт та CLI
+
+`tools/start_server.py` є PID 1 runtime-контейнера. Спочатку запускає C++
+HTTP-сервер з AUTO_INDEX=false, потім готує/перевикористовує корпус та викликає
+POST /api/index. Файл стану замінюється атомарно й читається /api/ready.
+Помилка генерації показується UI; supervisor передає сигнали дочірнім процесам.
+`model-init` автоматизує pull відсутньої моделі та прогрів; він не затримує HTTP.
+Монітор Ollama перевіряє не лише сервер, а й наявність вибраної моделі.
+
+C++ executable `search` викликає REST, підтримує SEARCH_URL/--server і --json;
+відрізняє порожню успішну відповідь від помилки ненульовим exit code.
 
 ## Потік даних: пошук
 1. Клієнт надсилає запит (REST або WebSocket).

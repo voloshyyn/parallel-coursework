@@ -1,0 +1,35 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+actor "Web user" as User
+participant "Vue UI / SearchClient" as UI
+participant "Crow WebSocket route" as Route
+participant SearchSocketService as Service
+participant "Own ThreadPool" as Pool
+participant SearchPipeline as Pipeline
+participant OllamaClient as LLM
+participant SearchEngine as Engine
+User -> UI : submit query
+UI -> Route : connect /ws/search; send {query}
+Route -> Service : OnMessage(connection, message)
+Service -> Service : validate; enqueue in session FIFO
+Service ->> Pool : Submit task
+note over Route
+  I/O handler returns without waiting for LLM.
+end note
+Pool -> Pipeline : Run(snapshot, query, observer)
+Pipeline -> LLM : ExpandQuery (bounded; fallback on failure)
+LLM --> Pipeline : expanded terms or empty list
+Pipeline -> Service : observer.on_expansion
+Service ->> UI : {stage: query_expansion, data: ...}
+Pipeline -> Engine : Search(index, effective query)
+Engine --> Pipeline : results
+Pipeline -> Service : observer.on_results
+Service ->> UI : {stage: keyword_search, data: ...}
+Service ->> UI : {stage: done}
+UI --> User : stages and results
+note over Service
+  Bounded queues; FIFO per connection.
+  Closed connections suppress further sends.
+end note
+@enduml
