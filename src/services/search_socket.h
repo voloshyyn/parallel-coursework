@@ -1,12 +1,12 @@
 #pragma once
 
+#include <crow.h>
+
 #include <cstddef>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
-
-#include <crow.h>
 
 #include "core/thread_pool.h"
 #include "services/index_service.h"

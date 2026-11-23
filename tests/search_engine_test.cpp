@@ -217,9 +217,8 @@ TEST(SearchEngine, SnippetMatchesFoldedCyrillicTokenBetweenPunctuation) {
   InvertedIndex index;
   // Cyrillic letters are multi-byte, so the padding is repeated as a string
   // instead of a character constant.
-  const std::string text = Repeat("д", 300) + " «освіта» " +
-                           Repeat("ї", 300) + " «Світ» " +
-                           Repeat("ж", 300);
+  const std::string text = Repeat("д", 300) + " «освіта» " + Repeat("ї", 300) +
+                           " «Світ» " + Repeat("ж", 300);
   AddDocuments(index, dir, {"a.txt"}, {text});
   const SearchEngine engine(dir.path().string());
 

@@ -47,8 +47,8 @@ SearchOutcome SearchPipeline::Run(const InvertedIndex& index,
   }
 
   const auto started = std::chrono::steady_clock::now();
-  outcome.results =
-      runner_ ? runner_(index, effective_query) : engine_.Search(index, effective_query);
+  outcome.results = runner_ ? runner_(index, effective_query)
+                            : engine_.Search(index, effective_query);
   outcome.search_time_ms =
       std::chrono::duration_cast<std::chrono::milliseconds>(
           std::chrono::steady_clock::now() - started)

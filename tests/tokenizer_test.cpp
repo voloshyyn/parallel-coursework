@@ -30,23 +30,25 @@ struct InvalidUtf8 {
 }  // namespace
 
 TEST(Tokenizer, LowercasesAscii) {
-  EXPECT_EQ((std::vector<std::string>{"hello", "world"}), Tokens("Hello, WORLD!"));
+  EXPECT_EQ((std::vector<std::string>{"hello", "world"}),
+            Tokens("Hello, WORLD!"));
 }
 
 TEST(Tokenizer, SplitsOnPunctuationAndSymbols) {
   EXPECT_EQ((std::vector<std::string>{"foo", "bar", "baz"}),
             Tokens("foo-bar_baz."));
-  EXPECT_EQ((std::vector<std::string>{"don", "t"}),
-            Tokens("don't"));
+  EXPECT_EQ((std::vector<std::string>{"don", "t"}), Tokens("don't"));
   EXPECT_EQ((std::vector<std::string>{"c", "20"}), Tokens("C++20"));
 }
 
 TEST(Tokenizer, KeepsDigitsInsideTokens) {
-  EXPECT_EQ((std::vector<std::string>{"utf8", "b2b", "42"}), Tokens("utf8 b2b 42"));
+  EXPECT_EQ((std::vector<std::string>{"utf8", "b2b", "42"}),
+            Tokens("utf8 b2b 42"));
 }
 
 TEST(Tokenizer, CollapsesRepeatedSeparators) {
-  EXPECT_EQ((std::vector<std::string>{"a", "b", "c"}), Tokens("  a \t\n b,,,c  "));
+  EXPECT_EQ((std::vector<std::string>{"a", "b", "c"}),
+            Tokens("  a \t\n b,,,c  "));
 }
 
 TEST(Tokenizer, ReturnsNothingForEmptyOrPunctuationOnlyText) {
@@ -66,8 +68,7 @@ TEST(Tokenizer, LowercasesCyrillic) {
 }
 
 TEST(Tokenizer, TreatsNonAsciiPunctuationAsSeparator) {
-  EXPECT_EQ((std::vector<std::string>{"word", "word"}),
-            Tokens("word—word"));
+  EXPECT_EQ((std::vector<std::string>{"word", "word"}), Tokens("word—word"));
   EXPECT_EQ((std::vector<std::string>{"слово", "слово"}),
             Tokens("«слово» — слово"));
   EXPECT_TRUE(Tokens("—–…“”").empty());

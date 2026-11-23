@@ -178,8 +178,9 @@ TEST(InvertedIndex, ParallelBuildMatchesSequentialBuild) {
   {
     search::ThreadPool pool(4);
     for (int i = 0; i < kDocuments; ++i) {
-      ASSERT_TRUE(pool.Submit(
-          [&parallel, &corpus, i] { parallel.AddDocument(DocName(i), corpus[i]); }));
+      ASSERT_TRUE(pool.Submit([&parallel, &corpus, i] {
+        parallel.AddDocument(DocName(i), corpus[i]);
+      }));
     }
   }
 
@@ -246,29 +247,29 @@ TEST(InvertedIndex, AnswersLookupsWhileAnotherThreadIndexes) {
   std::atomic<bool> finished{false};
   std::atomic<int> lookups{0};
 
-  std::thread reader([&index, &first_batch_added, &lookup_confirmed,
-                      &finished, &lookups] {
-    first_batch_added.acquire();
+  std::thread reader(
+      [&index, &first_batch_added, &lookup_confirmed, &finished, &lookups] {
+        first_batch_added.acquire();
 
-    // This lookup is guaranteed to see the first batch, not an empty index.
-    const std::vector<Posting> observed = index.Lookup("common");
-    EXPECT_FALSE(observed.empty());
-    for (const Posting& posting : observed) {
-      EXPECT_LT(posting.doc_id, index.DocumentCount());
-      EXPECT_GT(posting.term_freq, 0U);
-    }
-    lookups.fetch_add(1, std::memory_order_relaxed);
-    lookup_confirmed.release();
+        // This lookup is guaranteed to see the first batch, not an empty index.
+        const std::vector<Posting> observed = index.Lookup("common");
+        EXPECT_FALSE(observed.empty());
+        for (const Posting& posting : observed) {
+          EXPECT_LT(posting.doc_id, index.DocumentCount());
+          EXPECT_GT(posting.term_freq, 0U);
+        }
+        lookups.fetch_add(1, std::memory_order_relaxed);
+        lookup_confirmed.release();
 
-    // Keep reading while the writer indexes the rest of the corpus.
-    while (!finished.load(std::memory_order_acquire)) {
-      for (const Posting& posting : index.Lookup("common")) {
-        EXPECT_LT(posting.doc_id, index.DocumentCount());
-        EXPECT_GT(posting.term_freq, 0U);
-      }
-      lookups.fetch_add(1, std::memory_order_relaxed);
-    }
-  });
+        // Keep reading while the writer indexes the rest of the corpus.
+        while (!finished.load(std::memory_order_acquire)) {
+          for (const Posting& posting : index.Lookup("common")) {
+            EXPECT_LT(posting.doc_id, index.DocumentCount());
+            EXPECT_GT(posting.term_freq, 0U);
+          }
+          lookups.fetch_add(1, std::memory_order_relaxed);
+        }
+      });
 
   bool confirmed = false;
   for (int i = 0; i < kDocuments; ++i) {

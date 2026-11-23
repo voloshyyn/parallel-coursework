@@ -19,9 +19,8 @@ inline std::string UniqueSuffix() {
   static std::atomic<unsigned long long> counter{0};
   const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
   std::random_device device;
-  const auto random_bits =
-      (static_cast<unsigned long long>(device()) << 32) ^
-      static_cast<unsigned long long>(device());
+  const auto random_bits = (static_cast<unsigned long long>(device()) << 32) ^
+                           static_cast<unsigned long long>(device());
   return std::to_string(now) + "-" +
          std::to_string(counter.fetch_add(1, std::memory_order_relaxed)) + "-" +
          std::to_string(random_bits);
@@ -40,8 +39,7 @@ inline std::string UniqueSuffix() {
 class TempDir {
  public:
   TempDir() {
-    const std::filesystem::path base =
-        std::filesystem::temp_directory_path();
+    const std::filesystem::path base = std::filesystem::temp_directory_path();
     for (int attempt = 0; attempt < 32; ++attempt) {
       const std::filesystem::path candidate =
           base / ("search-test-" + detail::UniqueSuffix());

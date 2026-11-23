@@ -62,10 +62,9 @@ TEST(SearchPipeline, SearchesExpandedTermsTogetherWithTheQuery) {
   InvertedIndex index;
   AddDocuments(index, dir, {"a.txt", "b.txt"}, {"fish", "whale"});
   const SearchEngine engine(dir.path().string());
-  const SearchPipeline pipeline(
-      engine, [](std::string_view) {
-        return std::vector<std::string>{"whale"};
-      });
+  const SearchPipeline pipeline(engine, [](std::string_view) {
+    return std::vector<std::string>{"whale"};
+  });
 
   const SearchOutcome outcome = pipeline.Run(index, "fish");
 
@@ -146,13 +145,15 @@ TEST(SearchPipeline, ReportsExpansionBeforeTheKeywordSearchFinishes) {
 
   std::binary_semaphore search_started{0};
   std::binary_semaphore release_search{0};
-  SearchRunner runner = [&](const InvertedIndex& target, std::string_view query) {
+  SearchRunner runner = [&](const InvertedIndex& target,
+                            std::string_view query) {
     search_started.release();
     release_search.acquire();
     return engine.Search(target, query);
   };
   const SearchPipeline pipeline(
-      engine, [](std::string_view) { return std::vector<std::string>{"whale"}; },
+      engine,
+      [](std::string_view) { return std::vector<std::string>{"whale"}; },
       runner);
 
   std::vector<std::string> events;
@@ -166,8 +167,7 @@ TEST(SearchPipeline, ReportsExpansionBeforeTheKeywordSearchFinishes) {
   };
 
   SearchOutcome outcome;
-  std::thread worker(
-      [&] { outcome = pipeline.Run(index, "fish", observer); });
+  std::thread worker([&] { outcome = pipeline.Run(index, "fish", observer); });
 
   search_started.acquire();
   // The search is paused inside the runner; expansion must already be visible.

@@ -68,8 +68,8 @@ std::optional<BuildStats> IndexService::Build(std::size_t threads) {
           } catch (const std::exception& error) {
             std::lock_guard<std::mutex> lock(error_mutex);
             if (first_error.empty()) {
-              first_error = std::string(path.filename().string()) + ": " +
-                            error.what();
+              first_error =
+                  std::string(path.filename().string()) + ": " + error.what();
             }
           }
         });

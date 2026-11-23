@@ -1,6 +1,7 @@
-#include <gtest/gtest.h>
-
 #include <arpa/inet.h>
+#include <crow.h>
+#include <gtest/gtest.h>
+#include <httplib.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -8,6 +9,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <semaphore>
 #include <string>
@@ -15,10 +17,6 @@
 #include <thread>
 #include <utility>
 #include <vector>
-
-#include <crow.h>
-#include <httplib.h>
-#include <nlohmann/json.hpp>
 
 #include "api.h"
 #include "core/search_engine.h"
@@ -136,7 +134,8 @@ class WebSocketClient {
 
     const std::string request =
         "GET /ws/search HTTP/1.1\r\n"
-        "Host: 127.0.0.1:" + std::to_string(port) + "\r\n" +
+        "Host: 127.0.0.1:" +
+        std::to_string(port) + "\r\n" +
         "Upgrade: websocket\r\n"
         "Connection: Upgrade\r\n"
         "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
@@ -182,8 +181,7 @@ class WebSocketClient {
   bool ReadExact(char* data, std::size_t size) const {
     std::size_t read_total = 0;
     while (read_total < size) {
-      const ssize_t read =
-          ::recv(fd_, data + read_total, size - read_total, 0);
+      const ssize_t read = ::recv(fd_, data + read_total, size - read_total, 0);
       if (read <= 0) {
         return false;
       }
@@ -204,10 +202,10 @@ class WebSocketClient {
       if (!ReadExact(extended, sizeof(extended))) {
         return std::nullopt;
       }
-      length = (static_cast<std::uint64_t>(
-                    static_cast<unsigned char>(extended[0]))
-                << 8) |
-               static_cast<unsigned char>(extended[1]);
+      length =
+          (static_cast<std::uint64_t>(static_cast<unsigned char>(extended[0]))
+           << 8) |
+          static_cast<unsigned char>(extended[1]);
     } else if (length == 127) {
       char extended[8];
       if (!ReadExact(extended, sizeof(extended))) {

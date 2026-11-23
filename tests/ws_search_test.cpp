@@ -1,7 +1,5 @@
-#include <gtest/gtest.h>
-
 #include <crow.h>
-#include <nlohmann/json.hpp>
+#include <gtest/gtest.h>
 
 #include <atomic>
 #include <chrono>
@@ -10,6 +8,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include <semaphore>
 #include <string>
 #include <string_view>
@@ -63,8 +62,8 @@ class RecordingConnection : public crow::websocket::connection {
   bool WaitForCount(std::size_t count,
                     std::chrono::milliseconds timeout) const {
     std::unique_lock<std::mutex> lock(mutex_);
-    return condition_.wait_for(
-        lock, timeout, [this, count] { return sent_.size() >= count; });
+    return condition_.wait_for(lock, timeout,
+                               [this, count] { return sent_.size() >= count; });
   }
 
   std::size_t Count() const {
@@ -174,7 +173,8 @@ TEST(SearchSocket, DeliversExpansionWhileKeywordSearchIsStillRunning) {
 
   std::counting_semaphore<64> search_started{0};
   std::counting_semaphore<64> release_search{0};
-  SearchRunner runner = [&](const InvertedIndex& index, std::string_view query) {
+  SearchRunner runner = [&](const InvertedIndex& index,
+                            std::string_view query) {
     search_started.release();
     release_search.acquire();
     return engine.Search(index, query);
@@ -270,10 +270,9 @@ TEST(SearchSocket, ReportsABuildingIndex) {
   dir.Write("a.txt", "alpha");
   BuildGate gate("whale");
   gate.Hold("whale");
-  IndexService service(dir.path().string(),
-                       [&gate](const std::filesystem::path& path) {
-                         return gate.Read(path);
-                       });
+  IndexService service(
+      dir.path().string(),
+      [&gate](const std::filesystem::path& path) { return gate.Read(path); });
   const SearchEngine engine(dir.path().string());
   const SearchPipeline pipeline(engine);
   SearchSocketService socket_service(service, pipeline);
@@ -331,7 +330,8 @@ TEST(SearchSocket, RejectsAQueryWhenThePerConnectionQueueIsFull) {
 
   std::counting_semaphore<64> search_started{0};
   std::counting_semaphore<64> release_search{0};
-  SearchRunner runner = [&](const InvertedIndex& index, std::string_view query) {
+  SearchRunner runner = [&](const InvertedIndex& index,
+                            std::string_view query) {
     search_started.release();
     release_search.acquire();
     return engine.Search(index, query);
@@ -371,7 +371,8 @@ TEST(SearchSocket, ReportsBusyWhenThePoolQueueIsFull) {
 
   std::counting_semaphore<64> search_started{0};
   std::counting_semaphore<64> release_search{0};
-  SearchRunner runner = [&](const InvertedIndex& index, std::string_view query) {
+  SearchRunner runner = [&](const InvertedIndex& index,
+                            std::string_view query) {
     search_started.release();
     release_search.acquire();
     return engine.Search(index, query);
@@ -397,8 +398,7 @@ TEST(SearchSocket, ReportsBusyWhenThePoolQueueIsFull) {
 
   ASSERT_TRUE(third.WaitForCount(1, 5s));
   EXPECT_EQ("error", third.Messages().at(0).at("stage"));
-  EXPECT_EQ("server is busy",
-            third.Messages().at(0).at("data").at("message"));
+  EXPECT_EQ("server is busy", third.Messages().at(0).at("data").at("message"));
 
   release_search.release(2);
   socket_service.Shutdown();
@@ -417,7 +417,8 @@ TEST(SearchSocket, StopsSendingAfterTheClientDisconnects) {
 
   std::counting_semaphore<64> search_started{0};
   std::counting_semaphore<64> release_search{0};
-  SearchRunner runner = [&](const InvertedIndex& index, std::string_view query) {
+  SearchRunner runner = [&](const InvertedIndex& index,
+                            std::string_view query) {
     search_started.release();
     release_search.acquire();
     return engine.Search(index, query);

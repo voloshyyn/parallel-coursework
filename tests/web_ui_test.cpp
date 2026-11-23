@@ -1,13 +1,12 @@
+#include "web_ui.h"
+
+#include <crow.h>
 #include <gtest/gtest.h>
 #include <httplib.h>
 
 #include <chrono>
 #include <string>
 #include <thread>
-
-#include <crow.h>
-
-#include "web_ui.h"
 
 namespace {
 

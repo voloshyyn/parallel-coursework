@@ -24,24 +24,24 @@ crow::response AssetResponse(std::string_view body, const char* content_type) {
 void RegisterUiRoutes(crow::SimpleApp& app) {
   // Vue is embedded locally; the page calls /api/* and /ws/search on the same
   // origin, so no CORS headers are involved.
-  CROW_ROUTE(app, "/")([] {
-    return AssetResponse(web::kIndexHtml, "text/html; charset=utf-8");
-  });
-  CROW_ROUTE(app, "/app.js")([] {
+  CROW_ROUTE(app, "/")
+  ([] { return AssetResponse(web::kIndexHtml, "text/html; charset=utf-8"); });
+  CROW_ROUTE(app, "/app.js")
+  ([] {
     return AssetResponse(web::kAppJs, "application/javascript; charset=utf-8");
   });
-  CROW_ROUTE(app, "/search_client.js")([] {
+  CROW_ROUTE(app, "/search_client.js")
+  ([] {
     return AssetResponse(web::kSearchClientJs,
                          "application/javascript; charset=utf-8");
   });
   // Vue is part of the binary, so the demo needs no CDN and no network.
-  CROW_ROUTE(app, "/vue.global.prod.js")([] {
-    return AssetResponse(web::kVueJs,
-                         "application/javascript; charset=utf-8");
+  CROW_ROUTE(app, "/vue.global.prod.js")
+  ([] {
+    return AssetResponse(web::kVueJs, "application/javascript; charset=utf-8");
   });
-  CROW_ROUTE(app, "/style.css")([] {
-    return AssetResponse(web::kStyleCss, "text/css; charset=utf-8");
-  });
+  CROW_ROUTE(app, "/style.css")
+  ([] { return AssetResponse(web::kStyleCss, "text/css; charset=utf-8"); });
 }
 
 }  // namespace search

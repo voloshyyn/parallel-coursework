@@ -1,10 +1,10 @@
 #include "core/inverted_index.h"
 
-#include "core/tokenizer.h"
-
 #include <limits>
 #include <stdexcept>
 #include <utility>
+
+#include "core/tokenizer.h"
 
 namespace search {
 
@@ -35,8 +35,7 @@ DocId InvertedIndex::AddDocument(std::string doc_id, std::string_view text) {
   std::vector<std::vector<std::pair<const std::string*, std::uint32_t>>>
       per_shard(shards_.size());
   for (const auto& entry : frequencies) {
-    per_shard[ShardIndex(entry.first)].emplace_back(&entry.first,
-                                                    entry.second);
+    per_shard[ShardIndex(entry.first)].emplace_back(&entry.first, entry.second);
   }
 
   for (std::size_t i = 0; i < shards_.size(); ++i) {
@@ -115,8 +114,7 @@ std::size_t InvertedIndex::ShardIndex(std::string_view term) const {
   return std::hash<std::string_view>{}(term) % shards_.size();
 }
 
-DocId InvertedIndex::ReserveDocument(std::string doc_id,
-                                     std::uint32_t length) {
+DocId InvertedIndex::ReserveDocument(std::string doc_id, std::uint32_t length) {
   std::lock_guard<std::mutex> lock(documents_mutex_);
   if (doc_ids_by_name_.contains(doc_id)) {
     throw std::invalid_argument("document is already indexed: " + doc_id);

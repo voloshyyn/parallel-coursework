@@ -72,18 +72,16 @@ std::vector<SearchResult> SearchEngine::Search(const InvertedIndex& index,
     if (postings.empty()) {
       continue;
     }
-    const double idf =
-        std::log(1.0 + static_cast<double>(documents) /
-                          static_cast<double>(postings.size()));
+    const double idf = std::log(1.0 + static_cast<double>(documents) /
+                                          static_cast<double>(postings.size()));
     for (const Posting& posting : postings) {
       const std::uint32_t length = index.DocumentLength(posting.doc_id);
       if (length == 0) {
         continue;
       }
-      scores[posting.doc_id] +=
-          (static_cast<double>(posting.term_freq) /
-           static_cast<double>(length)) *
-          idf;
+      scores[posting.doc_id] += (static_cast<double>(posting.term_freq) /
+                                 static_cast<double>(length)) *
+                                idf;
     }
   }
   if (scores.empty()) {
@@ -159,7 +157,8 @@ std::string SearchEngine::Snippet(const std::string& doc_id,
     end = std::min(text.size(), match + match_length + kSnippetAfter);
   }
   // Never cut a multi-byte sequence in half.
-  while (begin > 0 && (static_cast<unsigned char>(text[begin]) & 0xC0U) == 0x80U) {
+  while (begin > 0 &&
+         (static_cast<unsigned char>(text[begin]) & 0xC0U) == 0x80U) {
     ++begin;
   }
   while (end < text.size() &&

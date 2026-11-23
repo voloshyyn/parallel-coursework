@@ -1,17 +1,17 @@
+#include "api.h"
+
+#include <crow.h>
 #include <gtest/gtest.h>
 #include <httplib.h>
 
 #include <chrono>
 #include <filesystem>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <vector>
 
-#include <crow.h>
-#include <nlohmann/json.hpp>
-
-#include "api.h"
 #include "core/search_engine.h"
 #include "services/index_service.h"
 #include "services/search_pipeline.h"
@@ -95,9 +95,8 @@ TEST(SearchApi, RejectsInvalidThreads) {
   httplib::Client client = MakeClient(server.port());
 
   const std::vector<std::string> bodies = {
-      R"({"threads": 0})",     R"({"threads": 65})",
-      R"({"threads": "four"})", R"({"threads": 2.5})",
-      R"({"threads": true})",
+      R"({"threads": 0})",   R"({"threads": 65})",   R"({"threads": "four"})",
+      R"({"threads": 2.5})", R"({"threads": true})",
   };
   for (const std::string& body : bodies) {
     SCOPED_TRACE(body);
@@ -108,10 +107,12 @@ TEST(SearchApi, RejectsInvalidThreads) {
               result->body.find("\"message\":\"threads must be in 1..64\""));
   }
 
-  const auto invalid = client.Post("/api/index", "not json", "application/json");
+  const auto invalid =
+      client.Post("/api/index", "not json", "application/json");
   ASSERT_TRUE(invalid);
   EXPECT_EQ(400, invalid->status);
-  EXPECT_NE(std::string::npos, invalid->body.find("\"message\":\"invalid JSON body\""));
+  EXPECT_NE(std::string::npos,
+            invalid->body.find("\"message\":\"invalid JSON body\""));
 
   EXPECT_EQ(IndexState::kEmpty, service.State());
 }
@@ -127,8 +128,8 @@ TEST(SearchApi, IndexesDocumentsAndServesStats) {
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
-  const auto indexed = client.Post("/api/index", R"({"threads": 2})",
-                                   "application/json");
+  const auto indexed =
+      client.Post("/api/index", R"({"threads": 2})", "application/json");
   ASSERT_TRUE(indexed);
   ASSERT_EQ(200, indexed->status) << indexed->body;
   const nlohmann::json index_body = ParseBody(indexed);
@@ -157,8 +158,7 @@ TEST(SearchApi, DefaultsToFourThreads) {
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
-  const auto indexed =
-      client.Post("/api/index", R"({})", "application/json");
+  const auto indexed = client.Post("/api/index", R"({})", "application/json");
   ASSERT_TRUE(indexed);
   ASSERT_EQ(200, indexed->status) << indexed->body;
   EXPECT_EQ(1, ParseBody(indexed).at("documents_indexed"));
@@ -177,9 +177,9 @@ TEST(SearchApi, SearchBeforeIndexReturns409) {
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
 
-  const auto result = client.Post("/api/search",
-                                  R"({"query": "whale", "mode": "keyword"})",
-                                  "application/json");
+  const auto result =
+      client.Post("/api/search", R"({"query": "whale", "mode": "keyword"})",
+                  "application/json");
   ASSERT_TRUE(result);
   EXPECT_EQ(409, result->status);
   EXPECT_NE(std::string::npos,
@@ -227,9 +227,9 @@ TEST(SearchApi, SearchesKeywordModeWithRankedResults) {
   ASSERT_TRUE(indexed);
   ASSERT_EQ(200, indexed->status) << indexed->body;
 
-  const auto result = client.Post("/api/search",
-                                  R"({"query": "whale", "mode": "keyword"})",
-                                  "application/json");
+  const auto result =
+      client.Post("/api/search", R"({"query": "whale", "mode": "keyword"})",
+                  "application/json");
   ASSERT_TRUE(result);
   ASSERT_EQ(200, result->status) << result->body;
   const nlohmann::json body = ParseBody(result);
@@ -245,7 +245,8 @@ TEST(SearchApi, SearchesKeywordModeWithRankedResults) {
     EXPECT_TRUE(hit.at("doc_id").is_string());
     EXPECT_TRUE(hit.at("score").is_number());
     EXPECT_TRUE(hit.at("snippet").is_string());
-    EXPECT_NE(std::string::npos, hit.at("snippet").get<std::string>().find("whale"));
+    EXPECT_NE(std::string::npos,
+              hit.at("snippet").get<std::string>().find("whale"));
   }
 }
 
@@ -258,10 +259,9 @@ TEST(SearchApi, SearchDuringBuildReturns409) {
   // deterministically instead of by racing a fast build.
   BuildGate gate("whale whale");
   gate.Hold("whale whale");
-  IndexService service(dir.path().string(),
-                       [&gate](const std::filesystem::path& path) {
-                         return gate.Read(path);
-                       });
+  IndexService service(
+      dir.path().string(),
+      [&gate](const std::filesystem::path& path) { return gate.Read(path); });
   const SearchEngine engine(dir.path().string());
   const SearchPipeline pipeline(engine);
   ApiServer server(service, pipeline, 18096);
@@ -271,16 +271,16 @@ TEST(SearchApi, SearchDuringBuildReturns409) {
   std::thread builder([&service, &build_status] {
     httplib::Client client("127.0.0.1", 18096);
     client.set_read_timeout(30s);
-    const auto result = client.Post("/api/index", R"({"threads": 1})",
-                                    "application/json");
+    const auto result =
+        client.Post("/api/index", R"({"threads": 1})", "application/json");
     build_status = result ? result->status : -1;
   });
   gate.WaitUntilReading();
 
   httplib::Client client = MakeClient(server.port());
-  const auto during_build = client.Post(
-      "/api/search", R"({"query": "whale", "mode": "keyword"})",
-      "application/json");
+  const auto during_build =
+      client.Post("/api/search", R"({"query": "whale", "mode": "keyword"})",
+                  "application/json");
   // A second POST /api/index during the build is rejected by the same rule.
   const auto second_index =
       client.Post("/api/index", R"({"threads": 1})", "application/json");
@@ -298,9 +298,9 @@ TEST(SearchApi, SearchDuringBuildReturns409) {
             second_index->body.find("\"message\":\"index is building\""));
   EXPECT_EQ(200, build_status);
 
-  const auto after_build = client.Post(
-      "/api/search", R"({"query": "whale", "mode": "keyword"})",
-      "application/json");
+  const auto after_build =
+      client.Post("/api/search", R"({"query": "whale", "mode": "keyword"})",
+                  "application/json");
   ASSERT_TRUE(after_build);
   EXPECT_EQ(200, after_build->status);
   EXPECT_EQ(2U, ParseBody(after_build).at("results").size());
@@ -315,10 +315,9 @@ TEST(SearchApi, SearchDuringRebuildReturns409) {
   dir.Write("b.txt", "beta");
 
   BuildGate gate("alpha");
-  IndexService service(dir.path().string(),
-                       [&gate](const std::filesystem::path& path) {
-                         return gate.Read(path);
-                       });
+  IndexService service(
+      dir.path().string(),
+      [&gate](const std::filesystem::path& path) { return gate.Read(path); });
   const SearchEngine engine(dir.path().string());
   const SearchPipeline pipeline(engine);
   ApiServer server(service, pipeline, 18097);
@@ -334,14 +333,13 @@ TEST(SearchApi, SearchDuringRebuildReturns409) {
   std::thread rebuilder([&service] {
     httplib::Client builder_client("127.0.0.1", 18097);
     builder_client.set_read_timeout(30s);
-    builder_client.Post("/api/index", R"({"threads": 3})",
-                        "application/json");
+    builder_client.Post("/api/index", R"({"threads": 3})", "application/json");
   });
   gate.WaitUntilReading();
 
-  const auto during_rebuild = client.Post(
-      "/api/search", R"({"query": "alpha", "mode": "keyword"})",
-      "application/json");
+  const auto during_rebuild =
+      client.Post("/api/search", R"({"query": "alpha", "mode": "keyword"})",
+                  "application/json");
   gate.Release();
   rebuilder.join();
 
@@ -357,16 +355,16 @@ TEST(SearchApi, SearchDuringRebuildReturns409) {
   EXPECT_EQ(2, ParseBody(stats).at("documents"));
   EXPECT_EQ(3, ParseBody(stats).at("threads_used"));
 
-  const auto after_rebuild = client.Post(
-      "/api/search", R"({"query": "whale", "mode": "keyword"})",
-      "application/json");
+  const auto after_rebuild =
+      client.Post("/api/search", R"({"query": "whale", "mode": "keyword"})",
+                  "application/json");
   ASSERT_TRUE(after_rebuild);
   ASSERT_EQ(200, after_rebuild->status) << after_rebuild->body;
   EXPECT_EQ(2U, ParseBody(after_rebuild).at("results").size());
 
-  const auto old_terms = client.Post(
-      "/api/search", R"({"query": "alpha", "mode": "keyword"})",
-      "application/json");
+  const auto old_terms =
+      client.Post("/api/search", R"({"query": "alpha", "mode": "keyword"})",
+                  "application/json");
   ASSERT_TRUE(old_terms);
   EXPECT_EQ(200, old_terms->status);
   EXPECT_TRUE(ParseBody(old_terms).at("results").empty());
@@ -432,9 +430,9 @@ TEST(SearchApi, SearchUsesExpandedTerms) {
   ASSERT_TRUE(indexed);
   ASSERT_EQ(200, indexed->status) << indexed->body;
 
-  const auto result = client.Post(
-      "/api/search", R"({"query": "big fish", "mode": "keyword"})",
-      "application/json");
+  const auto result =
+      client.Post("/api/search", R"({"query": "big fish", "mode": "keyword"})",
+                  "application/json");
   ASSERT_TRUE(result);
   ASSERT_EQ(200, result->status) << result->body;
   const nlohmann::json body = ParseBody(result);
@@ -452,9 +450,8 @@ TEST(SearchApi, SearchFallsBackToOriginalQueryWithoutExpansion) {
   dir.Write("a.txt", "alpha");
   IndexService service(dir.path().string());
   const SearchEngine engine(dir.path().string());
-  const SearchPipeline pipeline(engine, [](std::string_view) {
-    return std::vector<std::string>{};
-  });
+  const SearchPipeline pipeline(
+      engine, [](std::string_view) { return std::vector<std::string>{}; });
   ApiServer server(service, pipeline, 18100);
   ASSERT_TRUE(server.WaitUntilReady());
   httplib::Client client = MakeClient(server.port());
@@ -464,18 +461,18 @@ TEST(SearchApi, SearchFallsBackToOriginalQueryWithoutExpansion) {
   ASSERT_TRUE(indexed);
   ASSERT_EQ(200, indexed->status) << indexed->body;
 
-  const auto found = client.Post(
-      "/api/search", R"({"query": "alpha", "mode": "keyword"})",
-      "application/json");
+  const auto found =
+      client.Post("/api/search", R"({"query": "alpha", "mode": "keyword"})",
+                  "application/json");
   ASSERT_TRUE(found);
   ASSERT_EQ(200, found->status) << found->body;
   const nlohmann::json found_body = ParseBody(found);
   ASSERT_EQ(1U, found_body.at("results").size());
   EXPECT_EQ("a.txt", found_body.at("results").at(0).at("doc_id"));
 
-  const auto missing = client.Post(
-      "/api/search", R"({"query": "big fish", "mode": "keyword"})",
-      "application/json");
+  const auto missing =
+      client.Post("/api/search", R"({"query": "big fish", "mode": "keyword"})",
+                  "application/json");
   ASSERT_TRUE(missing);
   EXPECT_EQ(200, missing->status);
   EXPECT_TRUE(ParseBody(missing).at("results").empty());

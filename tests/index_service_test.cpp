@@ -121,10 +121,9 @@ TEST(IndexService, RejectsSecondBuildWhileFirstRuns) {
   dir.Write("b.txt", "beta");
 
   BuildGate gate("sample text");
-  IndexService service(dir.path().string(),
-                       [&gate](const std::filesystem::path& path) {
-                         return gate.Read(path);
-                       });
+  IndexService service(
+      dir.path().string(),
+      [&gate](const std::filesystem::path& path) { return gate.Read(path); });
   gate.Hold("sample text");
 
   std::optional<BuildStats> first;
@@ -152,10 +151,9 @@ TEST(IndexService, RejectsConcurrentBuildWhilePublishedIndexIsRebuilt) {
   dir.Write("b.txt", "beta");
 
   BuildGate gate("alpha");
-  IndexService service(dir.path().string(),
-                       [&gate](const std::filesystem::path& path) {
-                         return gate.Read(path);
-                       });
+  IndexService service(
+      dir.path().string(),
+      [&gate](const std::filesystem::path& path) { return gate.Read(path); });
   ASSERT_TRUE(service.Build(1).has_value());
   const PublishedIndex before = service.Snapshot();
   ASSERT_NE(nullptr, before.index);

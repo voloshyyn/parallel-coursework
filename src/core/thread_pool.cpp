@@ -26,12 +26,11 @@ ThreadPool::ThreadPool(std::size_t thread_count, std::size_t max_queue,
     throw std::invalid_argument("thread pool requires at least one thread");
   }
 
-  ThreadFactory create =
-      thread_factory
-          ? std::move(thread_factory)
-          : ThreadFactory([](std::function<void()> task) {
-              return std::thread(std::move(task));
-            });
+  ThreadFactory create = thread_factory
+                             ? std::move(thread_factory)
+                             : ThreadFactory([](std::function<void()> task) {
+                                 return std::thread(std::move(task));
+                               });
 
   try {
     workers_.reserve(thread_count_);

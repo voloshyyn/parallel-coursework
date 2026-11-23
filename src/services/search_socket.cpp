@@ -1,11 +1,10 @@
 #include "services/search_socket.h"
 
-#include <nlohmann/json.hpp>
-
-#include <deque>
 #include <cstdint>
+#include <deque>
 #include <exception>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -172,8 +171,7 @@ void SearchSocketService::OnMessage(crow::websocket::connection& connection,
     return;
   }
 
-  const bool accepted = pool_.Submit(
-      [this, session] { RunSession(session); });
+  const bool accepted = pool_.Submit([this, session] { RunSession(session); });
   if (!accepted) {
     // The pool refused the task (bounded queue or shutdown). Nothing can run
     // for this connection now, so drop its queued queries and report once.
@@ -186,8 +184,7 @@ void SearchSocketService::OnMessage(crow::websocket::connection& connection,
   }
 }
 
-void SearchSocketService::RunSession(
-    const std::shared_ptr<Session>& session) {
+void SearchSocketService::RunSession(const std::shared_ptr<Session>& session) {
   for (;;) {
     Session::Request request;
     {
@@ -223,19 +220,18 @@ void SearchSocketService::RunSession(
 
     try {
       PipelineObserver observer;
-      observer.on_expansion =
-          [session](std::string_view original,
-                    const std::vector<std::string>& terms) {
-            session->Send(Json{
-                {"stage", "query_expansion"},
-                {"data", Json{{"original", original},
-                              {"expanded_terms", TermsJson(terms)}}}});
-          };
+      observer.on_expansion = [session](std::string_view original,
+                                        const std::vector<std::string>& terms) {
+        session->Send(
+            Json{{"stage", "query_expansion"},
+                 {"data", Json{{"original", original},
+                               {"expanded_terms", TermsJson(terms)}}}});
+      };
       observer.on_results = [session](const SearchOutcome& outcome) {
-        session->Send(Json{
-            {"stage", "keyword_search"},
-            {"data", Json{{"results", HitsJson(outcome.results)},
-                          {"time_ms", outcome.search_time_ms}}}});
+        session->Send(
+            Json{{"stage", "keyword_search"},
+                 {"data", Json{{"results", HitsJson(outcome.results)},
+                               {"time_ms", outcome.search_time_ms}}}});
       };
 
       pipeline_.Run(*snapshot.index, request.query, observer);
