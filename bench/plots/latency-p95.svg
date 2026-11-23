@@ -26,25 +26,25 @@
 					</g>
 					<g transform="">
 						<g transform=" matrix(1,0,0,1,55,47)">
-							<text x="-2.5026855468750004" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">1</text>
+							<text x="-2.2500000000000004" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">1</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,123.333333,47)">
-							<text x="-2.5026855468750004" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">2</text>
+							<text x="-2.2500000000000004" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">2</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,191.666667,47)">
-							<text x="-2.5026855468750004" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">4</text>
+							<text x="-2.2500000000000004" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">4</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,260,47)">
-							<text x="-2.5026855468750004" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">8</text>
+							<text x="-2.2500000000000004" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">8</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,328.333333,47)">
-							<text x="-5.005371093750001" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">16</text>
+							<text x="-4.500000000000001" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">16</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,396.666667,47)">
-							<text x="-5.005371093750001" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">32</text>
+							<text x="-4.500000000000001" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">32</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,465,47)">
-							<text x="-5.005371093750001" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">64</text>
+							<text x="-4.500000000000001" y="-9.0" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-18) scale(1,-1)">64</text>
 						</g>
 					</g>
 				</g>
@@ -60,16 +60,16 @@
 					</g>
 					<g transform="">
 						<g transform=" matrix(1,0,0,1,50,52)">
-							<text x="-5.005371093750001" y="-3.6000000000000005" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-7) scale(1,-1)">0</text>
+							<text x="-4.500000000000001" y="-3.6000000000000005" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-7) scale(1,-1)">0</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,50,113.666667)">
-							<text x="-10.010742187500002" y="-3.6000000000000005" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-7) scale(1,-1)">50</text>
+							<text x="-9.000000000000002" y="-3.6000000000000005" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-7) scale(1,-1)">50</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,50,175.333333)">
-							<text x="-15.016113281250002" y="-3.6000000000000005" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-7) scale(1,-1)">100</text>
+							<text x="-13.500000000000002" y="-3.6000000000000005" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-7) scale(1,-1)">100</text>
 						</g>
 						<g transform=" matrix(1,0,0,1,50,237)">
-							<text x="-15.016113281250002" y="-3.6000000000000005" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-7) scale(1,-1)">150</text>
+							<text x="-13.500000000000002" y="-3.6000000000000005" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,-7) scale(1,-1)">150</text>
 						</g>
 					</g>
 				</g>
@@ -108,10 +108,10 @@
 			<path d="M 465,203.43027 L 465,203.43027 Z" style="stroke: rgb(9%,23%,38%); stroke-linecap: butt; stroke-width: 1;"/>
 			<path d="M 462,203.43027 L 468,203.43027 Z" style="stroke: rgb(9%,23%,38%); stroke-linecap: butt; stroke-width: 1;"/>
 			<path d="M 462,203.43027 L 468,203.43027 Z" style="stroke: rgb(9%,23%,38%); stroke-linecap: butt; stroke-width: 1;"/>
-			<text x="166.859375" y="270" style="font-family: Report-Bold; font-size: 12px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,540) scale(1,-1)">Затримка keyword-пошуку</text>
+			<text x="171.7373046875" y="270" style="font-family: Report-Bold; font-size: 12px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,540) scale(1,-1)">Затримка keyword-пошуку</text>
 			<text x="55" y="245" style="font-family: Report; font-size: 9px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,490) scale(1,-1)">Медіана p95, мс</text>
-			<text x="187.65380859375" y="27" style="font-family: Report; font-size: 10px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,54) scale(1,-1)">Одночасні клієнти (шкала log2)</text>
-			<text x="181.998046875" y="8" style="font-family: Report; font-size: 8px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,16) scale(1,-1)">Медіана 5 запусків; вуса: min-max</text>
+			<text x="192.47314453125" y="27" style="font-family: Report; font-size: 10px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,54) scale(1,-1)">Одночасні клієнти (шкала log2)</text>
+			<text x="186.51171875" y="8" style="font-family: Report; font-size: 8px;fill: rgb(0%,0%,0%); stroke:none;" transform="translate(0,16) scale(1,-1)">Медіана 5 запусків; вуса: min-max</text>
 		</g>
 	</g>
 </svg>

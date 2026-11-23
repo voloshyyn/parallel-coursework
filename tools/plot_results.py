@@ -20,18 +20,44 @@ TEAL = colors.HexColor("#087e8b")
 
 
 def register_fonts():
+    """Register Times New Roman (or a metric-compatible serif) as the report font.
+
+    The first available family wins: Times New Roman on Windows/macOS, then
+    Liberation Serif (metric-compatible with Times New Roman) and DejaVu Serif
+    on Linux. A monospaced face is registered for code listings.
+    """
+    win = Path("C:/Windows/Fonts")
+    mac = Path("/Library/Fonts")
+    liberation = Path("/usr/share/fonts/truetype/liberation")
+    dejavu = Path("/usr/share/fonts/truetype/dejavu")
     candidates = [
-        (Path("C:/Windows/Fonts/arial.ttf"), Path("C:/Windows/Fonts/arialbd.ttf")),
-        (Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-         Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")),
+        (win / "times.ttf", win / "timesbd.ttf", win / "timesi.ttf", win / "timesbi.ttf"),
+        (mac / "Times New Roman.ttf", mac / "Times New Roman Bold.ttf",
+         mac / "Times New Roman Italic.ttf", mac / "Times New Roman Bold Italic.ttf"),
+        (liberation / "LiberationSerif-Regular.ttf", liberation / "LiberationSerif-Bold.ttf",
+         liberation / "LiberationSerif-Italic.ttf", liberation / "LiberationSerif-BoldItalic.ttf"),
+        (dejavu / "DejaVuSerif.ttf", dejavu / "DejaVuSerif-Bold.ttf",
+         dejavu / "DejaVuSerif-Italic.ttf", dejavu / "DejaVuSerif-BoldItalic.ttf"),
     ]
-    for regular, bold in candidates:
-        if regular.exists() and bold.exists():
+    for regular, bold, italic, bold_italic in candidates:
+        if all(path.exists() for path in (regular, bold, italic, bold_italic)):
             pdfmetrics.registerFont(TTFont("Report", str(regular)))
             pdfmetrics.registerFont(TTFont("Report-Bold", str(bold)))
-            pdfmetrics.registerFontFamily("Report", normal="Report", bold="Report-Bold")
+            pdfmetrics.registerFont(TTFont("Report-Italic", str(italic)))
+            pdfmetrics.registerFont(TTFont("Report-BoldItalic", str(bold_italic)))
+            pdfmetrics.registerFontFamily("Report", normal="Report", bold="Report-Bold",
+                                          italic="Report-Italic", boldItalic="Report-BoldItalic")
+            break
+    else:
+        raise RuntimeError("Install Times New Roman, Liberation Serif or DejaVu Serif "
+                           "to render Ukrainian text")
+    mono_candidates = [win / "cour.ttf", liberation / "LiberationMono-Regular.ttf",
+                       dejavu / "DejaVuSansMono.ttf"]
+    for mono in mono_candidates:
+        if mono.exists():
+            pdfmetrics.registerFont(TTFont("Report-Mono", str(mono)))
             return
-    raise RuntimeError("Install DejaVu Sans or Arial to render Ukrainian text")
+    raise RuntimeError("Install Courier New, Liberation Mono or DejaVu Sans Mono")
 
 
 def aggregate(filename, key, metric):

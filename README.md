@@ -136,8 +136,10 @@ docker run --rm coursework-tests
 - [Графіки PDF, SVG, PNG](bench/plots/).
 - [Результати та аналіз масштабування](docs/experiments.md).
 
-Для регенерації графіків і звіту потрібні Python, `reportlab` та шрифт Arial
-або DejaVu Sans; `pypdfium2` додатково створює PNG графіків:
+Для регенерації графіків і звіту потрібні Python, `reportlab` та шрифт Times New
+Roman (або сумісний Liberation Serif / DejaVu Serif); `pypdfium2` додатково
+створює PNG графіків. Звіт оформлено за вимогами: Times New Roman 14 пт,
+інтервал 1,5, поля 30/10/20/20 мм:
 
 ```bash
 python tools/plot_results.py

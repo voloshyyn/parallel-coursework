@@ -55,6 +55,6 @@ docker stop coursework-bench
 запуску записані в `environment.json`; назва тому не впливає на зміст даних.
 
 Графіки створюються з CSV, без ручного підбору чисел. Для Python-рендерера
-потрібні `reportlab`, Arial або DejaVu Sans, опційно `pypdfium2` для PNG.
+потрібні `reportlab`, Times New Roman (або Liberation Serif / DejaVu Serif), опційно `pypdfium2` для PNG.
 PDF/SVG є векторними експортами. Проаналізовані обмеження та результати:
 `docs/experiments.md`, розділ 4 PDF-звіту.
