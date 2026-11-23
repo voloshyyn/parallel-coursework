@@ -1,6 +1,7 @@
 @startuml
 !pragma layout smetana
-skinparam defaultFontName Arial
+skinparam defaultFontName "Times New Roman"
+skinparam dpi 180
 skinparam shadowing false
 skinparam classAttributeIconSize 0
 class SearchSocketService {

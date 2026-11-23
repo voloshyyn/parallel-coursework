@@ -1,7 +1,8 @@
 @startuml
 !pragma layout smetana
 left to right direction
-skinparam defaultFontName Arial
+skinparam defaultFontName "Times New Roman"
+skinparam dpi 180
 skinparam shadowing false
 actor Operator
 actor "CLI user" as CLI

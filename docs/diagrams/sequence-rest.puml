@@ -1,5 +1,6 @@
 @startuml
-skinparam defaultFontName Arial
+skinparam defaultFontName "Times New Roman"
+skinparam dpi 180
 skinparam shadowing false
 actor "CLI user" as User
 participant "search CLI" as CLI

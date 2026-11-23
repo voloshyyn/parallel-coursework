@@ -1,5 +1,6 @@
 @startuml
-skinparam defaultFontName Arial
+skinparam defaultFontName "Times New Roman"
+skinparam dpi 180
 skinparam shadowing false
 actor "Web user" as User
 participant "Vue UI / SearchClient" as UI
