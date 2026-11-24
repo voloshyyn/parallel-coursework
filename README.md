@@ -250,7 +250,7 @@ Roman (або сумісний Liberation Serif / DejaVu Serif); `pypdfium2` д�
 
 ```bash
 python tools/plot_results.py
-python tools/build_report.py --author "Andrii Voloshyn"
+python tools/build_report.py --author "Волошин Андрій Сергійович" --group "КН-31"
 ```
 
 Параметр `--group` додає групу на титульний лист. Звіт читає CSV та фактичний

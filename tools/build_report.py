@@ -11,7 +11,7 @@ out of the real source files at build time, so the report cannot drift from the
 code. Dependencies: reportlab (pypdfium2 is optional for PNG chart exports).
 
 Run from any directory:
-    python tools/build_report.py --author "Прізвище Ім'я" --group "ІПС-41"
+    python tools/build_report.py --author "Прізвище Ім'я По батькові" --group "КН-31"
 """
 import argparse
 import collections
@@ -325,9 +325,8 @@ def render(args, stats):
         p("на тему: «Дослідження та реалізація паралельних обчислень на прикладі побудови пошукової системи з інтеграцією LLM»", "CoverBold"),
         Spacer(1, 22 * mm),
         p("Виконавець:", "CoverRight"),
-        p("здобувач вищої освіти IV курсу", "CoverRight"),
         p(f"{args.author}", "CoverRight"),
-        p(f"Група: {args.group or '________'}", "CoverRight"),
+        p(f"студент 4 курсу групи {args.group}", "CoverRight"),
         Spacer(1, 4 * mm),
         p("Керівник:", "CoverRight"),
         p("доктор філософії, старший викладач", "CoverRight"),
@@ -681,8 +680,8 @@ def render(args, stats):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--author", default="Волошин Андрій")
-    parser.add_argument("--group", default="")
+    parser.add_argument("--author", default="Волошин Андрій Сергійович")
+    parser.add_argument("--group", default="КН-31")
     args = parser.parse_args()
     stats = render(args, None)
     stats["pages"] = len(PdfReader(str(OUTPUT)).pages)
